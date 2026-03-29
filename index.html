@@ -561,16 +561,65 @@ for(var si=0;si<shopItems.length;si++){
 }
 
 // ══ RACE FUNCTIONS ══
+var cpMarkers=[]; // 3D checkpoint gate meshes
+
 function startRace(){
   if(raceActive)return;
   raceCheckpoints=[{x:100,z:-200},{x:100,z:-600},{x:100,z:-1000},{x:100,z:-600},{x:100,z:-100}];
   currentCheckpoint=0;raceTime=0;raceFinished=false;raceResult='';aiProgress=0;aiFinished=false;aiSpd=0;
-  vehicle.position.set(95,0.1,-80);vehicle.rotation.set(0,Math.PI,0);spd=0;steer=0;
+  vehicle.position.set(95,0.1,-80);vehicle.rotation.set(0,0,0);spd=0;steer=0; // face -Z direction
+
+  // Remove old checkpoint markers
+  for(var i=0;i<cpMarkers.length;i++)scene.remove(cpMarkers[i]);
+  cpMarkers=[];
+
+  // Create visible checkpoint gates
+  for(var ci=0;ci<raceCheckpoints.length;ci++){
+    var cp=raceCheckpoints[ci];
+    var gate=new THREE.Group();
+    var isFinish=ci===raceCheckpoints.length-1;
+    var gateColor=isFinish?0x00ff00:0xffaa00;
+    var gateMat=new THREE.MeshStandardMaterial({color:gateColor,emissive:gateColor,emissiveIntensity:0.5,transparent:true,opacity:0.7});
+
+    // Left pole
+    var lpole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,8,8),gateMat);
+    lpole.position.set(-8,4,0);gate.add(lpole);
+    // Right pole
+    var rpole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,8,8),gateMat);
+    rpole.position.set(8,4,0);gate.add(rpole);
+    // Top bar
+    var tbar=new THREE.Mesh(new THREE.BoxGeometry(16.6,0.5,0.5),gateMat);
+    tbar.position.set(0,8,0);gate.add(tbar);
+    // Banner
+    var bannerMat=new THREE.MeshStandardMaterial({color:gateColor,emissive:gateColor,emissiveIntensity:0.3,transparent:true,opacity:0.4,side:THREE.DoubleSide});
+    var banner=new THREE.Mesh(new THREE.PlaneGeometry(16,2),bannerMat);
+    banner.position.set(0,6.5,0);gate.add(banner);
+    // Number
+    var numMat=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:0.8});
+    var numGeo=new THREE.BoxGeometry(1.5,2,0.3);
+    var numMesh=new THREE.Mesh(numGeo,numMat);
+    numMesh.position.set(0,6.5,0.3);gate.add(numMesh);
+
+    // Ground ring (glowing circle on the road)
+    var ring=new THREE.Mesh(new THREE.TorusGeometry(8,0.3,8,32),gateMat);
+    ring.rotation.x=Math.PI/2;ring.position.y=0.2;gate.add(ring);
+
+    // Arrow pointing to this checkpoint (tall beacon)
+    var beacon=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,15,6),new THREE.MeshStandardMaterial({color:gateColor,emissive:gateColor,emissiveIntensity:0.8,transparent:true,opacity:0.5}));
+    beacon.position.set(0,7.5,0);gate.add(beacon);
+
+    gate.position.set(cp.x,0,cp.z);
+    scene.add(gate);
+    cpMarkers.push(gate);
+  }
+
+  // AI vehicle
   if(aiVehicle)scene.remove(aiVehicle);
   aiVehicle=new THREE.Group();
   var ab=new THREE.Mesh(new THREE.BoxGeometry(selectedV==='bmwix'?2:0.8,selectedV==='bmwix'?1.2:0.8,selectedV==='bmwix'?4.5:2.5),new THREE.MeshStandardMaterial({color:0xcc0000,roughness:0.15,metalness:0.5}));
   ab.position.y=selectedV==='bmwix'?0.8:0.6;ab.castShadow=true;aiVehicle.add(ab);
-  aiVehicle.position.set(105,0.1,-80);aiVehicle.rotation.set(0,Math.PI,0);scene.add(aiVehicle);
+  aiVehicle.position.set(105,0.1,-80);aiVehicle.rotation.set(0,0,0);scene.add(aiVehicle);
+
   raceCountdown=4;raceActive=true;
   document.getElementById('race-btn').style.display='none';
   document.getElementById('race-result').style.opacity='0';
@@ -581,6 +630,8 @@ function updateRace(dt){
   if(!raceActive)return;
   var rHud=document.getElementById('race-hud');
   var rCount=document.getElementById('race-countdown');
+
+  // Countdown
   if(raceCountdown>0){
     raceCountdown-=dt;rHud.style.opacity='1';
     if(raceCountdown>3)rCount.textContent='3';
@@ -592,32 +643,75 @@ function updateRace(dt){
   }
   if(raceFinished)return;
   raceTime+=dt;
+
+  // Update checkpoint gate visibility — hide passed ones, pulse current
+  for(var gi=0;gi<cpMarkers.length;gi++){
+    if(gi<currentCheckpoint){
+      cpMarkers[gi].visible=false; // already passed
+    } else if(gi===currentCheckpoint){
+      cpMarkers[gi].visible=true;
+      // Pulse the current gate
+      var pulseScale=1+Math.sin(Date.now()*0.005)*0.05;
+      cpMarkers[gi].scale.setScalar(pulseScale);
+    } else {
+      cpMarkers[gi].visible=true;
+      cpMarkers[gi].scale.setScalar(1);
+    }
+  }
+
+  // Check player checkpoint (distance to current)
   var cp=raceCheckpoints[currentCheckpoint];
-  var dx=vehicle.position.x-cp.x,dz=vehicle.position.z-cp.z;
-  if(Math.sqrt(dx*dx+dz*dz)<60){
+  var dx=vehicle.position.x-cp.x, dz=vehicle.position.z-cp.z;
+  var distToCP=Math.sqrt(dx*dx+dz*dz);
+  if(distToCP<60){
     currentCheckpoint++;
     if(currentCheckpoint>=raceCheckpoints.length){
       raceFinished=true;
+      // Remove all markers
+      for(var gi=0;gi<cpMarkers.length;gi++){scene.remove(cpMarkers[gi]);}cpMarkers=[];
       if(!aiFinished){raceResult='win';points+=50;saveProgress();showRaceResult('DU GEWINNST!','#44ff00','+50 Punkte! Zeit: '+raceTime.toFixed(1)+'s');}
       return;
     }
   }
-  var V=VDATA[selectedV];aiSpd+=(V.top*0.75-aiSpd)*0.5*dt;
-  var aiCP=raceCheckpoints[Math.floor(aiProgress)];
-  var aiNext=raceCheckpoints[Math.min(Math.floor(aiProgress)+1,raceCheckpoints.length-1)];
+
+  // AI opponent
+  var V=VDATA[selectedV];
+  aiSpd+=(V.top*0.55-aiSpd)*0.5*dt; // AI at 55% of player top speed
+  var aiCPi=Math.floor(aiProgress);
+  var aiCP=raceCheckpoints[aiCPi];
+  var aiNext=raceCheckpoints[Math.min(aiCPi+1,raceCheckpoints.length-1)];
   if(aiCP&&aiNext&&aiVehicle){
-    var frac=aiProgress-Math.floor(aiProgress);
-    aiVehicle.position.x+=((aiCP.x+(aiNext.x-aiCP.x)*frac+10)-aiVehicle.position.x)*3*dt;
-    aiVehicle.position.z+=((aiCP.z+(aiNext.z-aiCP.z)*frac)-aiVehicle.position.z)*3*dt;
+    var frac=aiProgress-aiCPi;
+    var tx=aiCP.x+(aiNext.x-aiCP.x)*frac+10;
+    var tz=aiCP.z+(aiNext.z-aiCP.z)*frac;
+    aiVehicle.position.x+=(tx-aiVehicle.position.x)*3*dt;
+    aiVehicle.position.z+=(tz-aiVehicle.position.z)*3*dt;
     var adx=aiNext.x-aiCP.x,adz=aiNext.z-aiCP.z;
     aiVehicle.rotation.y+=(Math.atan2(adx,adz)-aiVehicle.rotation.y)*3*dt;
-    var cpD=Math.sqrt(adx*adx+adz*adz);if(cpD>0)aiProgress+=aiSpd*dt/cpD;
+    var cpD=Math.sqrt(adx*adx+adz*adz);
+    if(cpD>0)aiProgress+=aiSpd*dt/cpD;
     if(aiProgress>=raceCheckpoints.length-1&&!aiFinished){
       aiFinished=true;
-      if(!raceFinished){raceFinished=true;raceResult='lose';points=Math.max(0,points-10);saveProgress();showRaceResult('VERLOREN!','#ff2200','-10 Punkte. Versuch es nochmal!');}
+      if(!raceFinished){
+        raceFinished=true;raceResult='lose';points=Math.max(0,points-10);saveProgress();
+        for(var gi=0;gi<cpMarkers.length;gi++){scene.remove(cpMarkers[gi]);}cpMarkers=[];
+        showRaceResult('VERLOREN!','#ff2200','-10 Punkte. Versuch es nochmal!');
+      }
     }
   }
-  document.getElementById('race-info').textContent='Rennen: '+raceTime.toFixed(1)+'s | Checkpoint '+(currentCheckpoint+1)+'/'+raceCheckpoints.length;
+
+  // HUD: show distance + direction to next checkpoint
+  var nextCP=raceCheckpoints[currentCheckpoint];
+  var arrow='';
+  if(nextCP){
+    var ddx=nextCP.x-vehicle.position.x, ddz=nextCP.z-vehicle.position.z;
+    var ddist=Math.sqrt(ddx*ddx+ddz*ddz);
+    if(ddz<-10)arrow=' ↑ GERADEAUS';
+    else if(ddz>10)arrow=' ↓ UMDREHEN';
+    if(ddx>10)arrow+=' → RECHTS';
+    else if(ddx<-10)arrow+=' ← LINKS';
+    document.getElementById('race-info').textContent='CP '+(currentCheckpoint+1)+'/'+raceCheckpoints.length+' | '+Math.round(ddist)+'m'+arrow+' | '+raceTime.toFixed(1)+'s';
+  }
 }
 
 function showRaceResult(text,color,sub){
@@ -1097,6 +1191,7 @@ function initGame(){
   kawaAudio.load();
   startEngineSound();
   document.getElementById('vname').textContent=VDATA[selectedV].name;
+  document.getElementById('race-btn').style.display='block';
   setTimeout(function(){document.getElementById('info').style.opacity='0';},8000);
   animate();
 }
