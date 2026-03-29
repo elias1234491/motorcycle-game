@@ -72,6 +72,15 @@
 #tb-wheelie{width:55px;height:55px;background:rgba(255,150,0,0.4);bottom:100px;left:45px;font-size:12px}
 #tb-shop{width:45px;height:45px;background:rgba(255,200,0,0.3);top:20px;left:20px;font-size:11px;border-radius:10px}
 #tb-cam{width:45px;height:45px;background:rgba(255,255,255,0.2);top:20px;left:75px;font-size:11px;border-radius:10px}
+#race-hud{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:15;text-align:center;opacity:0;transition:opacity 0.3s}
+#race-countdown{font-size:80px;font-weight:900;color:#fff;text-shadow:0 0 30px rgba(255,255,255,0.5)}
+#race-info{position:fixed;top:80px;left:50%;transform:translateX(-50%);color:#fff;font-size:14px;pointer-events:none;z-index:10;background:rgba(0,0,0,0.5);padding:6px 14px;border-radius:8px;opacity:0;transition:opacity 0.3s}
+#race-result{position:fixed;top:35%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:15;text-align:center;opacity:0;transition:opacity 0.3s}
+#race-result .big{font-size:50px;font-weight:900;text-shadow:0 0 30px rgba(255,200,0,0.5)}
+#race-result .sub{font-size:18px;color:#aaa;margin-top:8px}
+#race-btn{position:fixed;top:80px;right:25px;z-index:12;padding:12px 24px;background:rgba(255,100,0,0.8);color:#fff;border:2px solid rgba(255,200,0,0.5);border-radius:12px;cursor:pointer;font-size:16px;font-weight:bold;display:none;animation:pulse 1.5s infinite}
+#race-btn:hover{background:rgba(255,100,0,1);transform:scale(1.05)}
+@keyframes pulse{0%,100%{box-shadow:0 0 15px rgba(255,100,0,0.4)}50%{box-shadow:0 0 25px rgba(255,100,0,0.7)}}
 @media(pointer:coarse),(max-width:900px){#touch-controls{display:block}#info{display:none}}
 .speedline{position:absolute;background:rgba(255,255,255,0.15);border-radius:2px}
 </style>
@@ -111,6 +120,10 @@
 </div>
 <div id="nitro-bar"><div id="nitro-label">NITRO</div><div id="nitro-bg"><div id="nitro-fill"></div></div></div>
 <div id="speedlines"></div>
+<div id="race-hud"><div id="race-countdown"></div></div>
+<div id="race-info"></div>
+<div id="race-result"><div class="big"></div><div class="sub"></div></div>
+<button id="race-btn" onclick="startRace()">RENNEN STARTEN (R)</button>
 <div id="touch-controls">
 <button class="tb" id="tb-gas">GAS</button>
 <button class="tb" id="tb-brake">BRK</button>
@@ -158,6 +171,12 @@ function saveProgress(){
 }
 var dustParticles=[];
 var gameTime=0; // for day/night cycle
+
+// ══ RACE SYSTEM ══
+var raceActive=false, raceCountdown=0, raceTime=0, raceFinished=false;
+var raceCheckpoints=[], currentCheckpoint=0;
+var aiVehicle=null, aiSpd=0, aiProgress=0, aiFinished=false;
+var raceResult='';
 
 // ══ AUDIO ENGINE (Sample-based) ══
 var audioCtx=null;
@@ -433,6 +452,7 @@ document.getElementById('startBtn').onclick=function(){
 
 window.onkeydown=function(e){keys[e.code]=true;
   if(e.code==='KeyV'){fpCam=!fpCam;camYaw=0;camPitch=0;}
+  if(e.code==='KeyR'&&started&&!raceActive)startRace();
   if(e.code==='Escape'&&started)document.getElementById('menu').style.display='flex';
   if(e.code==='KeyB'&&started){
     var sh=document.getElementById('shop');
@@ -538,6 +558,74 @@ for(var si=0;si<shopItems.length;si++){
       resetV();
     }
   };
+}
+
+// ══ RACE FUNCTIONS ══
+function startRace(){
+  if(raceActive)return;
+  raceCheckpoints=[{x:100,z:-200},{x:100,z:-600},{x:100,z:-1000},{x:100,z:-600},{x:100,z:-100}];
+  currentCheckpoint=0;raceTime=0;raceFinished=false;raceResult='';aiProgress=0;aiFinished=false;aiSpd=0;
+  vehicle.position.set(95,0.1,-80);vehicle.rotation.set(0,Math.PI,0);spd=0;steer=0;
+  if(aiVehicle)scene.remove(aiVehicle);
+  aiVehicle=new THREE.Group();
+  var ab=new THREE.Mesh(new THREE.BoxGeometry(selectedV==='bmwix'?2:0.8,selectedV==='bmwix'?1.2:0.8,selectedV==='bmwix'?4.5:2.5),new THREE.MeshStandardMaterial({color:0xcc0000,roughness:0.15,metalness:0.5}));
+  ab.position.y=selectedV==='bmwix'?0.8:0.6;ab.castShadow=true;aiVehicle.add(ab);
+  aiVehicle.position.set(105,0.1,-80);aiVehicle.rotation.set(0,Math.PI,0);scene.add(aiVehicle);
+  raceCountdown=4;raceActive=true;
+  document.getElementById('race-btn').style.display='none';
+  document.getElementById('race-result').style.opacity='0';
+  document.getElementById('race-info').style.opacity='1';
+}
+
+function updateRace(dt){
+  if(!raceActive)return;
+  var rHud=document.getElementById('race-hud');
+  var rCount=document.getElementById('race-countdown');
+  if(raceCountdown>0){
+    raceCountdown-=dt;rHud.style.opacity='1';
+    if(raceCountdown>3)rCount.textContent='3';
+    else if(raceCountdown>2){rCount.textContent='2';rCount.style.color='#ffaa00';}
+    else if(raceCountdown>1){rCount.textContent='1';rCount.style.color='#ff4400';}
+    else{rCount.textContent='GO!';rCount.style.color='#44ff00';}
+    if(raceCountdown<=0)setTimeout(function(){rHud.style.opacity='0';rCount.style.color='#fff';},800);
+    return;
+  }
+  if(raceFinished)return;
+  raceTime+=dt;
+  var cp=raceCheckpoints[currentCheckpoint];
+  var dx=vehicle.position.x-cp.x,dz=vehicle.position.z-cp.z;
+  if(Math.sqrt(dx*dx+dz*dz)<60){
+    currentCheckpoint++;
+    if(currentCheckpoint>=raceCheckpoints.length){
+      raceFinished=true;
+      if(!aiFinished){raceResult='win';points+=50;saveProgress();showRaceResult('DU GEWINNST!','#44ff00','+50 Punkte! Zeit: '+raceTime.toFixed(1)+'s');}
+      return;
+    }
+  }
+  var V=VDATA[selectedV];aiSpd+=(V.top*0.75-aiSpd)*0.5*dt;
+  var aiCP=raceCheckpoints[Math.floor(aiProgress)];
+  var aiNext=raceCheckpoints[Math.min(Math.floor(aiProgress)+1,raceCheckpoints.length-1)];
+  if(aiCP&&aiNext&&aiVehicle){
+    var frac=aiProgress-Math.floor(aiProgress);
+    aiVehicle.position.x+=((aiCP.x+(aiNext.x-aiCP.x)*frac+10)-aiVehicle.position.x)*3*dt;
+    aiVehicle.position.z+=((aiCP.z+(aiNext.z-aiCP.z)*frac)-aiVehicle.position.z)*3*dt;
+    var adx=aiNext.x-aiCP.x,adz=aiNext.z-aiCP.z;
+    aiVehicle.rotation.y+=(Math.atan2(adx,adz)-aiVehicle.rotation.y)*3*dt;
+    var cpD=Math.sqrt(adx*adx+adz*adz);if(cpD>0)aiProgress+=aiSpd*dt/cpD;
+    if(aiProgress>=raceCheckpoints.length-1&&!aiFinished){
+      aiFinished=true;
+      if(!raceFinished){raceFinished=true;raceResult='lose';points=Math.max(0,points-10);saveProgress();showRaceResult('VERLOREN!','#ff2200','-10 Punkte. Versuch es nochmal!');}
+    }
+  }
+  document.getElementById('race-info').textContent='Rennen: '+raceTime.toFixed(1)+'s | Checkpoint '+(currentCheckpoint+1)+'/'+raceCheckpoints.length;
+}
+
+function showRaceResult(text,color,sub){
+  var r=document.getElementById('race-result');r.style.opacity='1';
+  r.querySelector('.big').textContent=text;r.querySelector('.big').style.color=color;
+  r.querySelector('.sub').textContent=sub;
+  document.getElementById('race-info').style.opacity='0';
+  setTimeout(function(){document.getElementById('race-btn').style.display='block';r.style.opacity='0';raceActive=false;if(aiVehicle){scene.remove(aiVehicle);aiVehicle=null;}},4000);
 }
 
 function initGame(){
@@ -1766,6 +1854,7 @@ function animate(){
   document.getElementById('warn').style.opacity=fuel<10?(Math.sin(Date.now()*0.005)>0?'1':'0'):'0';
 
   var canGo=fuel>0;
+  if(raceActive&&raceCountdown>0){canGo=false;spd=0;}
   if(gas&&canGo)spd+=V.acc*dt;
   else if(brk)spd-=V.brk*dt;
   else{if(spd>0)spd-=V.fri*dt;if(spd<0)spd+=V.fri*dt;if(Math.abs(spd)<0.1)spd=0;}
@@ -2030,6 +2119,8 @@ function animate(){
   // Update engine sound + flames
   updateEngineSound(spd,gas,brk);
   updateFlames(dt);
+  updateRace(dt);
+  if(!raceActive&&started&&document.getElementById('race-btn').style.display!=='block'){document.getElementById('race-btn').style.display='block';}
 
   renderer.render(scene,camera);
 }
