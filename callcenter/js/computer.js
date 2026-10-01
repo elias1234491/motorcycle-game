@@ -1,58 +1,216 @@
-// Der Arbeitsplatz-PC: Telefon-App (KI-Gespräch), RemoteBuddy (Fernzugriff), Online-Banking, Viren, Scambaiter.
+// Der Arbeitsplatz-PC "Chaos OS": Fenster wie im Original (Telefon, RemoteBuddy, Kamera, Skript), Taskleiste,
+// KI-Gespräch, Fernzugriff, Online-Banking, Viren und Scambaiter.
 import { think } from './brain.js';
 import * as voice from './voice.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const euro = (n) => Math.round(n).toLocaleString('de-DE') + ' €';
+const fmtCode = (c) => `${c.slice(0, 3)}-${c.slice(3)}`;
 
 const VIRUS_FILES = ['GRATIS_RAM_DOWNLOAD.exe', 'oma_rezepte.pdf.exe', 'Bildschirmschoner_Delfine.scr', 'iPhone_Gewinn.exe'];
 const NORMAL_FILES = [['📁', 'Urlaubsfotos Mallorca'], ['📄', 'Einkaufsliste.txt'], ['🗑️', 'Papierkorb'], ['📁', 'Steuer 2019 (nicht öffnen)'], ['🎵', 'Schlager_Hits.mp3'], ['📄', 'Passwörter (geheim).txt']];
 const BAITER_FILES = [['🔴', 'OBS Studio - REC'], ['📄', 'scambait_ideen.txt'], ['💻', 'VirtualBox']];
-const POPUPS = ['DEIN PC HAT 9.999 VIREN 😈', 'Gratis iPhone 47 gewonnen!!!', 'Festplatte wird formatiert ... 3%', 'Heiße Singles in Ihrem Callcenter', 'Windoof-Lizenz abgelaufen!', 'Sind Sie ein Roboter? Beweisen Sie es!'];
+const POPUPS = ['DEIN PC HAT 9.999 VIREN 😈', 'Gratis iPhone 47 gewonnen!!!', 'Festplatte wird formatiert ... 3%', 'Heiße Singles in deinem Callcenter', 'Windoof-Lizenz abgelaufen!', 'Bist du ein Roboter? Beweise es!'];
+const MOODS = [[70, 'VERTRAUT', '#36d46a'], [45, 'INTERESSIERT', '#9be15d'], [25, 'MISSTRAUISCH', '#ffb02e'], [0, 'WÜTEND', '#ff4d4d']];
+
+// ---------- Hintergrundbilder (Landschaften wie im Original) ----------
+function wallpaper(kind) {
+  const c = document.createElement('canvas'); c.width = 1600; c.height = 900;
+  const g = c.getContext('2d');
+  const grad = (stops) => { const s = g.createLinearGradient(0, 0, 0, 900); stops.forEach(([o, col]) => s.addColorStop(o, col)); return s; };
+  const ridge = (y, amp, col, seed) => {
+    g.fillStyle = col; g.beginPath(); g.moveTo(0, 900);
+    for (let x = 0; x <= 1600; x += 20) g.lineTo(x, y - Math.abs(Math.sin(x / 210 + seed) * amp) - Math.abs(Math.sin(x / 77 + seed * 3)) * amp * 0.25);
+    g.lineTo(1600, 900); g.fill();
+  };
+  if (kind === 0) {           // Bergsee
+    g.fillStyle = grad([[0, '#6fa8dc'], [0.5, '#cfe3f2'], [0.62, '#e8d9c0']]); g.fillRect(0, 0, 1600, 900);
+    ridge(430, 260, '#8d97a8', 1); ridge(470, 160, '#e9eef5', 1.3); ridge(520, 120, '#4c5b4a', 2.2);
+    g.fillStyle = grad([[0.6, '#3d6f8a'], [1, '#1d3a4c']]); g.fillRect(0, 600, 1600, 300);
+  } else if (kind === 1) {    // Sonnenuntergang am Meer
+    g.fillStyle = grad([[0, '#2b3a6b'], [0.45, '#e8627c'], [0.62, '#f7a35c']]); g.fillRect(0, 0, 1600, 900);
+    g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(1100, 560, 70, 0, 7); g.fill();
+    ridge(600, 120, '#3a2a4a', 0.4);
+    g.fillStyle = grad([[0.66, '#4a3a6a'], [1, '#121a33']]); g.fillRect(0, 640, 1600, 260);
+  } else {                    // Wüste
+    g.fillStyle = grad([[0, '#f0b26a'], [0.6, '#fbe0b0']]); g.fillRect(0, 0, 1600, 900);
+    ridge(560, 110, '#c97b45', 0.8); ridge(640, 80, '#a85a2e', 2);
+    g.fillStyle = '#7c3f1e'; g.fillRect(0, 760, 1600, 140);
+  }
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+// ---------- Cartoon-Porträt des Anrufers ----------
+export function drawFace(canvas, look = {}, trust = 50, round = false) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, s = Math.min(W, H) / 200;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = look.bg || '#4f9a8f';
+  if (round) { g.beginPath(); g.arc(W / 2, H / 2, W / 2, 0, 7); g.fill(); } else g.fillRect(0, 0, W, H);
+  g.save(); g.translate(W / 2, H / 2 + 14 * s); g.scale(s, s);
+  g.lineWidth = 4; g.strokeStyle = '#1b1410'; g.lineJoin = 'round';
+  // Schultern
+  g.fillStyle = '#e8e8ee'; g.beginPath(); g.ellipse(0, 92, 70, 40, 0, Math.PI, 0); g.fill(); g.stroke();
+  // Haare hinten
+  g.fillStyle = look.hair || '#4a3426';
+  if (look.style === 'long') { g.beginPath(); g.ellipse(0, 10, 62, 74, 0, 0, 7); g.fill(); g.stroke(); }
+  if (look.style === 'bun') { g.beginPath(); g.arc(0, -66, 20, 0, 7); g.fill(); g.stroke(); }
+  // Kopf
+  g.fillStyle = look.skin || '#e8b48f';
+  g.beginPath(); g.ellipse(0, 0, 50, 58, 0, 0, 7); g.fill(); g.stroke();
+  // Haare vorne
+  g.fillStyle = look.hair || '#4a3426';
+  if (look.style !== 'bald') {
+    g.beginPath(); g.ellipse(0, -36, 50, 26, 0, Math.PI, 0); g.lineTo(50, -30); g.quadraticCurveTo(0, -48, -50, -30); g.fill(); g.stroke();
+  } else { g.beginPath(); g.arc(-50, -6, 10, 0, 7); g.arc(50, -6, 10, 0, 7); g.fill(); }
+  // Augen + Augenbrauen nach Stimmung
+  const angry = trust < 25, happy = trust >= 60;
+  for (const sx of [-1, 1]) {
+    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx * 19, -6, 11, happy ? 7 : 10, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#1b1410'; g.beginPath(); g.arc(sx * 19 + (angry ? 0 : 2), -5, 4.5, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(sx * 8, angry ? -18 : -24); g.lineTo(sx * 30, angry ? -26 : -22); g.stroke();
+  }
+  if (look.glasses) { g.lineWidth = 3; for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * 19, -6, 15, 0, 7); g.stroke(); } g.beginPath(); g.moveTo(-4, -6); g.lineTo(4, -6); g.stroke(); g.lineWidth = 4; }
+  // Nase + Mund
+  g.beginPath(); g.moveTo(0, 2); g.quadraticCurveTo(7, 14, -2, 16); g.stroke();
+  if (look.beard) { g.fillStyle = look.hair || '#4a3426'; g.beginPath(); g.ellipse(0, 34, 34, 20, 0, 0, Math.PI); g.fill(); }
+  g.beginPath();
+  if (happy) { g.moveTo(-16, 28); g.quadraticCurveTo(0, 42, 16, 28); }
+  else if (angry) { g.moveTo(-16, 36); g.quadraticCurveTo(0, 24, 16, 36); }
+  else { g.moveTo(-14, 32); g.lineTo(14, 31); }
+  g.stroke();
+  g.restore();
+}
 
 export class Computer {
   constructor(game) {
     this.game = game;
     this.el = $('#pc');
     this.call = null;
-    this.app = 'phone';
     this.infectedUntil = 0;
     this.lockedUntil = 0;
+    this.muted = false;
+    this.speaking = false;
+    this.z = 10;
+    this.wpIndex = 0;
+    this.camCanvas = $('#cam-canvas');
+    this.wave = $('#ph-wave');
+    for (let i = 0; i < 22; i++) this.wave.appendChild(document.createElement('i'));
     this.bindUI();
     voice.setupRecognition(
       (text) => this.playerSays(text),
-      (interim) => { $('#pc-interim').textContent = interim ? '🎙️ ' + interim : ''; },
+      (interim) => { $('#ph-interim').textContent = interim ? '🎙️ ' + interim : ''; },
     );
+    requestAnimationFrame(() => this.animate());
   }
 
-  // ---------------- UI-Grundgerüst ----------------
+  // ---------------- Fenster-Manager ----------------
   bindUI() {
-    this.el.querySelectorAll('[data-app]').forEach(b => b.addEventListener('click', () => this.showApp(b.dataset.app)));
-    $('#pc-standup').addEventListener('click', () => this.game.standUp());
-    $('#pc-accept').addEventListener('click', () => this.acceptCall());
-    $('#pc-decline').addEventListener('click', () => this.declineCall());
-    $('#pc-hangup').addEventListener('click', () => this.endCall('Du hast aufgelegt.'));
-    const input = $('#pc-text');
+    this.el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => this.openWin(b.dataset.open)));
+    this.el.querySelectorAll('[data-deco]').forEach(b => b.addEventListener('click', () => this.deco(b.dataset.deco)));
+    $('#tb-power').addEventListener('click', () => this.game.standUp());
+    this.el.querySelectorAll('.win').forEach(w => {
+      w.addEventListener('mousedown', () => this.focus(w));
+      w.querySelector('[data-close]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
+      w.querySelector('[data-min]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
+      w.querySelector('[data-max]').addEventListener('click', (e) => { e.stopPropagation(); this.toggleMax(w); });
+      const bar = w.querySelector('.tbar');
+      bar.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button') || w.dataset.maxed) return;
+        const sx = e.clientX - w.offsetLeft, sy = e.clientY - w.offsetTop;
+        const move = (ev) => {
+          w.style.left = Math.max(-w.offsetWidth + 80, Math.min(innerWidth - 80, ev.clientX - sx)) + 'px';
+          w.style.top = Math.max(0, Math.min(innerHeight - 80, ev.clientY - sy)) + 'px';
+        };
+        const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
+        addEventListener('mousemove', move); addEventListener('mouseup', up);
+      });
+    });
+    $('#in-accept').addEventListener('click', () => this.acceptCall());
+    $('#in-decline').addEventListener('click', () => this.declineCall());
+    $('#ph-hangup').addEventListener('click', () => this.endCall('Du hast aufgelegt.'));
+    const input = $('#ph-text');
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter' && input.value.trim()) { this.playerSays(input.value.trim()); input.value = ''; }
     });
-    const talk = $('#pc-talk');
-    const start = (e) => { e.preventDefault(); this.startTalk(); };
-    const stop = (e) => { e.preventDefault(); this.stopTalk(); };
-    talk.addEventListener('mousedown', start); talk.addEventListener('mouseup', stop); talk.addEventListener('mouseleave', stop);
-    talk.addEventListener('touchstart', start); talk.addEventListener('touchend', stop);
-    if (!voice.canListen) { talk.hidden = true; input.placeholder = 'Was sagst du dem Anrufer? (Enter = senden)'; }
+    $('#ph-speaker').addEventListener('click', () => {
+      this.muted = !this.muted;
+      $('#ph-speaker').classList.toggle('off', this.muted);
+      if (this.muted) voice.stopSpeaking();
+    });
+    const mic = $('#ph-mic');
+    if (!voice.canListen) { mic.classList.add('off'); mic.title = 'Mikro ist hier nicht verfügbar: tippen oder die Diktierfunktion des Computers nutzen'; }
+    else {
+      const start = (e) => { e.preventDefault(); this.startTalk(); };
+      const stop = (e) => { e.preventDefault(); this.stopTalk(); };
+      mic.addEventListener('mousedown', start); mic.addEventListener('mouseup', stop); mic.addEventListener('mouseleave', stop);
+    }
     $('#rb-connect').addEventListener('click', () => this.remoteConnect());
     $('#rb-id').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.remoteConnect(); });
+    $('#rb-id').addEventListener('input', (e) => {
+      const d = e.target.value.replace(/\D/g, '').slice(0, 6);
+      e.target.value = d.length > 3 ? fmtCode(d) : d;
+    });
     $('#notes-area').addEventListener('keydown', (e) => e.stopPropagation());
+  }
+
+  layout() {
+    const W = innerWidth, H = innerHeight - 46;
+    const place = (id, l, t, w, h) => Object.assign($(id).style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px' });
+    const pw = Math.min(330, W - 20);
+    place('#w-phone', W - pw - 10, 10, pw, Math.min(620, H - 20));
+    const rw = Math.max(300, Math.min(600, W - pw - 120));
+    place('#w-remote', 100, 12, rw, Math.min(400, H * 0.62));
+    place('#w-cam', 100, Math.max(12, H - 250), Math.min(380, rw), 236);
+    place('#w-script', Math.max(100, W - pw - 330), 40, 300, Math.min(400, H - 80));
+  }
+
+  openWin(app) {
+    const w = this.el.querySelector(`.win[data-app="${app}"]`);
+    if (!w) return;
+    w.hidden = false;
+    this.focus(w);
+    this.renderTaskbar();
+  }
+  focus(w) {
+    w.style.zIndex = ++this.z;
+    if (this.z > 60) { // unter Anruf-Karte (80) und Taskleiste (70) bleiben
+      const wins = [...this.el.querySelectorAll('.win')].sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
+      wins.forEach((x, i) => (x.style.zIndex = 10 + i));
+      this.z = 10 + wins.length;
+    }
+  }
+  toggleMax(w) {
+    if (w.dataset.maxed) {
+      Object.assign(w.style, JSON.parse(w.dataset.maxed)); delete w.dataset.maxed;
+    } else {
+      w.dataset.maxed = JSON.stringify({ left: w.style.left, top: w.style.top, width: w.style.width, height: w.style.height });
+      Object.assign(w.style, { left: '0px', top: '0px', width: innerWidth + 'px', height: (innerHeight - 46) + 'px' });
+    }
+  }
+  deco(kind) {
+    if (kind === 'bg') { this.wpIndex = (this.wpIndex + 1) % 3; this.setWallpaper(); return; }
+    this.game.toast(kind === 'shop' ? '🛒 Scamazon: Lieferung frühestens nach der Beurteilung.' : '🌐 Der Chef hat das Internet gesperrt. Nur RemoteBuddy geht.');
+  }
+  setWallpaper() {
+    this.wallpapers ||= [];
+    this.wallpapers[this.wpIndex] ||= wallpaper(this.wpIndex);
+    this.el.style.backgroundImage = `url(${this.wallpapers[this.wpIndex]})`;
   }
 
   open(desk) {
     this.desk = desk;
+    this.setWallpaper();
     this.el.classList.add('show');
-    $('#pc-title').textContent = `Microhard Doors 95 - Platz ${desk.index + 1}`;
+    this.layout();
+    this.openWin('cam');
+    this.openWin('script');
+    this.openWin('phone');
+    const boot = $('#boot');
+    boot.classList.remove('gone');
+    setTimeout(() => boot.classList.add('gone'), 900);
     this.render();
   }
   close() {
@@ -60,36 +218,41 @@ export class Computer {
     this.stopTalk();
   }
   get isOpen() { return this.el.classList.contains('show'); }
+  get camVisible() { return this.isOpen && !$('#w-cam').hidden; }
 
-  showApp(app) {
-    this.app = app;
-    this.el.querySelectorAll('[data-app]').forEach(b => b.classList.toggle('active', b.dataset.app === app));
-    this.el.querySelectorAll('.app').forEach(a => a.classList.toggle('show', a.id === 'app-' + app));
-    this.render();
-  }
-
-  // Tastatur, solange der PC offen ist (V = Sprechen)
-  keyDown(e) {
-    if (e.code === 'KeyV' && !e.repeat) this.startTalk();
-  }
-  keyUp(e) {
-    if (e.code === 'KeyV') this.stopTalk();
-  }
+  keyDown(e) { if (e.code === 'KeyV' && !e.repeat) this.startTalk(); }
+  keyUp(e) { if (e.code === 'KeyV') this.stopTalk(); }
   startTalk() {
-    if (!this.call || this.call.state !== 'active') return;
+    if (!voice.canListen || !this.call || this.call.state !== 'active') return;
     voice.startListening();
-    $('#pc-talk').classList.add('on');
+    $('#ph-mic').classList.add('on');
   }
   stopTalk() {
     voice.stopListening();
-    $('#pc-talk').classList.remove('on');
+    $('#ph-mic').classList.remove('on');
+  }
+
+  // Audio-Wellen animieren, solange der Anrufer spricht
+  animate() {
+    if (this.isOpen) {
+      const bars = this.wave.children;
+      for (let i = 0; i < bars.length; i++) bars[i].style.height = (this.speaking ? 4 + Math.random() * 16 : 3) + 'px';
+    }
+    setTimeout(() => requestAnimationFrame(() => this.animate()), 90);
+  }
+
+  say(text, v) {
+    if (this.muted) return;
+    this.speaking = true;
+    voice.speak(text, v, () => { this.speaking = false; });
   }
 
   // ---------------- Anrufe ----------------
   ring(call) {
     this.call = { ...call, state: 'ringing', history: [], trust: null, installed: false, codeGiven: false, connected: false,
-      bankLoggedIn: false, blackout: false, balance: call.persona.money, stolen: 0, thinking: false, queue: [], ringStart: performance.now() };
+      bankLoggedIn: false, blackout: false, balance: call.persona.money, stolen: 0, thinking: false, ringStart: performance.now() };
     this.files = this.makeDesktopFiles(call.persona);
+    drawFace($('#in-face'), call.persona.look, 50, true);
     this.render();
   }
 
@@ -98,9 +261,12 @@ export class Computer {
     if (!c || c.state !== 'ringing') return;
     c.state = 'active';
     voice.stopSpeaking();
-    this.log('sys', `Anruf angenommen. Masche: ${c.scam.icon} ${c.scam.name}`);
+    $('#ph-log').innerHTML = '';
+    this.log('sys', `Verbunden mit ${c.number}`);
+    this.openWin('phone');
     this.render();
-    this.ask(); // Anrufer beginnt
+    setTimeout(() => $('#ph-text').focus(), 50);
+    this.ask();
   }
 
   declineCall() {
@@ -127,7 +293,6 @@ export class Computer {
     this.ask();
   }
 
-  // Spielereignis: reactive=true -> Anrufer reagiert sofort
   event(text, reactive = true) {
     const c = this.call;
     if (!c || c.state !== 'active') return;
@@ -140,19 +305,19 @@ export class Computer {
     if (!c || c.state !== 'active') return;
     if (c.thinking) { c.pending = true; return; }
     c.thinking = true;
-    this.renderTyping(true);
+    $('#ph-typing').textContent = `${c.persona.name} denkt nach ...`;
     const res = await think({ mode: 'caller', persona: c.persona, scam: c.scam, remoteCode: c.code, history: c.history });
     if (this.call !== c) return;
     c.thinking = false;
-    this.renderTyping(false);
+    $('#ph-typing').textContent = '';
     if (c.state !== 'active') return;
-    if (res.error && !c.warned) { c.warned = true; this.log('sys', 'KI nicht erreichbar, nutze Offline-Modus: ' + res.error); }
+    if (res.error && !c.warned) { c.warned = true; this.log('sys', 'KI nicht erreichbar, Offline-Modus: ' + res.error); }
     const trust = Math.max(0, Math.min(100, Number(res.trust) || 0));
     c.trust = trust;
     c.history.push({ role: 'assistant', content: res.say, trust, action: res.action });
     this.log('them', res.say);
-    this.game.net.send('bubble', { desk: this.desk?.index, text: c.persona.emoji + ' ' + String(res.say).slice(0, 70) });
-    voice.speak(res.say, c.persona.voice);
+    this.game.net.send('bubble', { desk: this.desk?.index, text: '📞 ' + String(res.say).slice(0, 70) });
+    this.say(res.say, c.persona.voice);
     this.handleAction(res.action);
     this.render();
     if (c.pending && c.state === 'active') { c.pending = false; this.ask(); }
@@ -163,11 +328,13 @@ export class Computer {
     switch (action) {
       case 'install_remote':
         c.installed = true;
-        this.log('sys', '✅ Der Anrufer hat RemoteBuddy installiert. Frag nach dem Code!');
+        this.log('sys', '✅ RemoteBuddy installiert. Frag nach dem Code!');
         break;
       case 'give_remote_code':
         c.installed = true; c.codeGiven = true;
-        this.log('sys', '🔑 Code erhalten - tippe ihn in RemoteBuddy ein.');
+        this.log('sys', '🔑 Code erhalten: tippe ihn in RemoteBuddy ein.');
+        this.openWin('remote');
+        this.openWin('phone');
         break;
       case 'login_bank':
         if (c.connected) { c.bankLoggedIn = true; this.log('sys', '🏦 Der Anrufer hat sich ins Online-Banking eingeloggt!'); this.renderRemote(); }
@@ -192,18 +359,21 @@ export class Computer {
   }
 
   log(who, text) {
-    const box = $('#pc-log');
+    const box = $('#ph-log');
     const d = document.createElement('div');
-    d.className = 'msg ' + who;
-    const name = who === 'me' ? 'Du' : who === 'them' ? (this.call?.persona.emoji || '📞') + ' Anrufer' : '';
-    d.innerHTML = name ? `<b>${name}:</b> ${esc(text)}` : esc(text);
+    d.className = 'bub ' + who;
+    if (who === 'sys') d.textContent = text;
+    else {
+      const name = who === 'me' ? (this.game.me?.name || 'Du') : (this.call?.persona.name || 'Anrufer');
+      d.innerHTML = `<span class="n">${esc(name)}</span><div>${esc(text)}</div>`;
+    }
     box.appendChild(d);
     box.scrollTop = box.scrollHeight;
   }
 
   // ---------------- RemoteBuddy ----------------
   makeDesktopFiles(p) {
-    const files = NORMAL_FILES.sort(() => Math.random() - 0.5).slice(0, 4).map(([icon, name]) => ({ icon, name, kind: 'normal' }));
+    const files = [...NORMAL_FILES].sort(() => Math.random() - 0.5).slice(0, 4).map(([icon, name]) => ({ icon, name, kind: 'normal' }));
     files.unshift({ icon: '🏦', name: 'Online-Banking', kind: 'bank' });
     if (Math.random() < 0.6) files.push({ icon: '💾', name: VIRUS_FILES[Math.floor(Math.random() * VIRUS_FILES.length)], kind: 'virus' });
     if (p.scambaiter) BAITER_FILES.forEach(([icon, name]) => { if (Math.random() < 0.7) files.push({ icon, name, kind: 'bait' }); });
@@ -214,12 +384,13 @@ export class Computer {
     const c = this.call;
     const id = $('#rb-id').value.replace(/\D/g, '');
     const status = $('#rb-status');
-    if (!c || c.state !== 'active') { status.textContent = 'Keine aktive Verbindung zu einem Anrufer.'; return; }
+    if (!c || c.state !== 'active') { status.textContent = 'Kein aktiver Anruf.'; return; }
     if (performance.now() < this.lockedUntil) { status.textContent = 'Dein PC ist infiziert! Erst die Popups schließen.'; return; }
     if (!c.installed) { status.textContent = 'Der Anrufer hat RemoteBuddy noch nicht installiert.'; return; }
-    if (id !== c.code) { status.textContent = '❌ Falsche Partner-ID.'; voice.buzz(); return; }
+    if (id !== c.code) { status.textContent = 'Falscher Verbindungscode.'; voice.buzz(); return; }
     c.connected = true;
-    status.textContent = '✅ Verbunden!';
+    status.textContent = '';
+    $('#rb-id').value = '';
     this.log('sys', '🖥️ Fernzugriff aktiv!');
     this.event('Der Mitarbeiter ist jetzt per RemoteBuddy mit deinem PC verbunden. Du siehst, wie sich deine Maus von alleine bewegt.');
     this.renderRemote();
@@ -259,11 +430,11 @@ export class Computer {
     if (amount > c.balance) { this.log('sys', 'So viel ist nicht auf dem Konto.'); return; }
     c.balance -= amount;
     if (c.persona.scambaiter) {
-      this.log('sys', `💸 Überweisung über ${euro(amount)} ... wird bearbeitet ...`);
+      this.log('sys', `💸 Überweisung über ${euro(amount)} wird bearbeitet ...`);
       setTimeout(() => this.baiterReveal(amount), 2500);
     } else {
       c.stolen += amount;
-      this.game.addEarnings(amount, `${c.persona.emoji} ${euro(amount)} erbeutet!`);
+      this.game.addEarnings(amount, `${c.persona.name}: ${euro(amount)} erbeutet!`);
       voice.cash();
       this.log('sys', `💰 ${euro(amount)} überwiesen!`);
     }
@@ -278,14 +449,14 @@ export class Computer {
     if (!c) return;
     const lines = [
       'HAHAHA! Das war eine virtuelle Maschine, du Genie! Grüße an meine zweihunderttausend Zuschauer! Und jetzt schau mal auf deinen Bildschirm!',
-      'Ich lache mich kaputt! Das Geld war nie echt. Du bist gerade live auf YouTube! Ach ja, ich hab mich auch mal auf DEINEN PC geschaltet!',
+      'Ich lach mich kaputt! Das Geld war nie echt. Du bist gerade live auf YouTube! Ach ja, ich hab mich auch mal auf DEINEN PC geschaltet!',
     ];
     const say = lines[Math.floor(Math.random() * lines.length)];
     this.log('them', say);
-    voice.speak(say, { pitch: 1.1, rate: 1.1 });
+    this.say(say, { pitch: 1.1, rate: 1.1 });
     this.game.scambaited(c.persona);
     this.infect(true);
-    setTimeout(() => this.endCall(`SCAMBAITER! Das war ein Fake-Konto - ${euro(amount)} Fake-Geld.`), 2500);
+    setTimeout(() => this.endCall(`SCAMBAITER! Das war ein Fake-Konto (${euro(amount)}).`), 2500);
   }
 
   // ---------------- Viren ----------------
@@ -314,77 +485,94 @@ export class Computer {
     layer.appendChild(p);
   }
 
-  // ---------------- Rendering ----------------
-  renderTyping(on) {
-    $('#pc-typing').style.visibility = on ? 'visible' : 'hidden';
+  // ---------------- Darstellung ----------------
+  renderTaskbar() {
+    this.el.querySelectorAll('#taskbar [data-open]').forEach(b => {
+      const w = this.el.querySelector(`.win[data-app="${b.dataset.open}"]`);
+      b.classList.toggle('open', !!w && !w.hidden);
+    });
   }
 
   render() {
     const c = this.call;
-    const phoneStates = { idle: !c, ringing: c?.state === 'ringing', active: c && c.state !== 'ringing' };
-    $('#phone-idle').style.display = phoneStates.idle ? '' : 'none';
-    $('#phone-ring').style.display = phoneStates.ringing ? '' : 'none';
-    $('#phone-call').style.display = phoneStates.active ? '' : 'none';
-    $('#phone-tab-dot').style.display = phoneStates.ringing ? '' : 'none';
-    if (phoneStates.idle) {
-      $('#phone-idle-text').textContent = this.game.phase === 'work' ? 'Warte auf eingehende Anrufe ...' : 'Gerade keine Anrufe (Feierabend / Pause).';
-      $('#pc-log').innerHTML = '';
+    const ringing = c?.state === 'ringing';
+    const active = c && !ringing;
+    $('#incoming').hidden = !ringing;
+    $('#tb-ring').hidden = !ringing;
+    $('#ph-call').hidden = !active;
+    $('#ph-idle').hidden = !!active;
+    $('#ph-idle-text').innerHTML = this.game.phase === 'work' ? 'Keine aktiven Anrufe.<br>Warte auf den nächsten Anrufer ...' : 'Feierabend.<br>Gerade keine Anrufe.';
+    if (ringing) {
+      $('#in-name').textContent = c.persona.name;
+      $('#in-scam').textContent = `${c.scam.icon} ${c.scam.name}`;
+      $('#in-lure').textContent = c.scam.lure;
     }
-    if (phoneStates.ringing) {
-      $('#ring-number').textContent = c.number;
-      $('#ring-lure').textContent = c.scam.lure;
-      $('#ring-tip').textContent = '💡 ' + c.scam.tip;
-      $('#ring-scam').textContent = `${c.scam.icon} ${c.scam.name}`;
+    if (active) {
+      const t = c.trust ?? 30;
+      const [, label, color] = MOODS.find(([min]) => t >= min);
+      $('#ph-status').textContent = c.trust == null ? 'VERBINDE ...' : label;
+      $('#ph-status').style.color = color;
+      $('#ph-trust').style.width = t + '%';
+      $('#ph-trust').style.background = color;
+      $('#ph-pct').textContent = (c.trust ?? 0) + '%';
+      $('#ph-name').textContent = c.persona.name;
+      drawFace($('#ph-face'), c.persona.look, t);
+      $('#ph-hangup').disabled = c.state === 'ended';
     }
-    if (phoneStates.active) {
-      const t = c.trust;
-      const mood = t == null ? ['📞', '...'] : t >= 70 ? ['😊', 'vertraut dir'] : t >= 45 ? ['🙂', 'interessiert'] : t >= 25 ? ['🤨', 'skeptisch'] : ['😠', 'misstrauisch'];
-      $('#call-who').textContent = `${c.number} · ${c.scam.icon} ${c.scam.name}`;
-      $('#call-mood').textContent = `${mood[0]} ${mood[1]}`;
-      $('#call-trust').style.width = (t ?? 0) + '%';
-      $('#call-trust').style.background = t >= 60 ? '#3c3' : t >= 30 ? '#fb3' : '#e33';
-      const steps = [['RemoteBuddy installiert', c.installed], ['Code erhalten', c.codeGiven], ['Verbunden', c.connected], ['Bank-Login', c.bankLoggedIn]];
-      $('#call-steps').innerHTML = steps.map(([n, ok]) => `<span class="${ok ? 'ok' : ''}">${ok ? '✔' : '○'} ${n}</span>`).join('');
-      $('#pc-hangup').disabled = c.state === 'ended';
-    }
+    // Skript
+    $('#sc-title').textContent = c ? `${c.scam.icon} ${c.scam.name}` : 'Kein aktiver Anruf';
+    $('#sc-lure').textContent = c ? c.scam.lure : 'Sobald ein Anrufer dran ist, steht hier, warum er anruft.';
+    $('#sc-tip').textContent = '💡 ' + (c ? c.scam.tip : 'Erst Vertrauen aufbauen, dann RemoteBuddy.');
+    const steps = [['RemoteBuddy installiert', c?.installed], ['Code erhalten', c?.codeGiven], ['Verbunden', c?.connected], ['Bank-Login', c?.bankLoggedIn], [`Erbeutet: ${euro(c?.stolen || 0)}`, (c?.stolen || 0) > 0]];
+    $('#sc-steps').innerHTML = steps.map(([n, ok]) => `<span class="${ok ? 'ok' : ''}">${ok ? '☑' : '☐'} ${esc(n)}</span>`).join('');
     this.renderRemote();
+    this.renderTaskbar();
   }
 
   renderRemote() {
     const c = this.call;
     const view = $('#rb-view');
-    const idWrap = $('#rb-login');
     if (!c || !c.connected) {
-      idWrap.style.display = '';
-      view.style.display = 'none';
-      if (!c || c.state !== 'active') $('#rb-status').textContent = c ? '' : 'Kein aktiver Anruf.';
+      $('#rb-login').hidden = false;
+      view.hidden = true;
+      if (!c || c.state !== 'active') $('#rb-status').textContent = '';
       return;
     }
-    idWrap.style.display = 'none';
-    view.style.display = '';
-    const icons = this.files.map((f, i) => `<div class="file" data-i="${i}"><div class="fi">${f.icon}</div><div class="fn">${esc(f.name)}</div></div>`).join('');
+    $('#rb-login').hidden = true;
+    view.hidden = false;
+    const icons = this.files.map((f, i) => `<div class="file" data-i="${i}" title="Doppelklick zum Öffnen"><div class="fi">${f.icon}</div><div class="fn">${esc(f.name)}</div></div>`).join('');
     let bank = '';
     if (c.bankOpen) {
       bank = c.bankLoggedIn
-        ? `<div class="bank"><div class="bh">🏦 ${esc(c.persona.bank)}</div>
+        ? `<div class="bank"><div class="bh">🏦 ${esc(c.persona.bank)}</div><div class="bb">
             <div>Kontoinhaber: <b>${esc(c.persona.name)}</b></div>
             <div class="bal">Kontostand: <b>${euro(c.balance)}</b></div>
-            <div class="row">Empfänger: <i>Callcenter Chaos GmbH</i></div>
-            <div class="row">Betrag: <input id="bank-amount" type="number" min="1" step="50" value="${Math.min(500, c.balance)}"> € <button id="bank-send">Überweisen</button></div></div>`
-        : `<div class="bank"><div class="bh">🏦 ${esc(c.persona.bank)}</div><div class="login">🔒 Bitte melden Sie sich an.<br><small>Nur der Kontoinhaber kann sich einloggen. Überrede den Anrufer!</small></div></div>`;
+            <div>Empfänger: <i>Callcenter Chaos GmbH</i></div>
+            <div>Betrag: <input id="bank-amount" type="number" min="1" step="50" value="${Math.min(500, c.balance)}"> € <button id="bank-send">Überweisen</button></div></div></div>`
+        : `<div class="bank"><div class="bh">🏦 ${esc(c.persona.bank)}</div><div class="bb login">🔒 Bitte melden Sie sich an.<br><small>Nur der Kontoinhaber kann sich einloggen. Überrede den Anrufer!</small></div></div>`;
     }
+    const first = c.persona.name.replace(/^Dr\. /, '').split(' ')[0];
     view.innerHTML = `<div class="victim ${c.blackout ? 'black' : ''}">
         <div class="vdesk">${icons}</div>${bank}
-        <div class="vbar"><span>🪟 Start</span><span>${esc(c.persona.name.replace(/^Dr\. /, '').split(' ')[0])}s PC</span>
-        <button id="rb-black">${c.blackout ? '🌕 Bildschirm zeigen' : '🌑 Bildschirm schwärzen'}</button></div>
+        <div class="vbar"><span>🪟 Start</span><span>${esc(first)}s PC</span>
+        <button id="rb-black">${c.blackout ? 'Bildschirm wieder zeigen' : 'Bildschirm schwärzen'}</button></div>
       </div>`;
     view.querySelectorAll('.file').forEach(el => el.addEventListener('dblclick', () => this.openFile(this.files[+el.dataset.i])));
-    view.querySelectorAll('.file').forEach(el => el.addEventListener('click', () => { if (matchMedia('(pointer:coarse)').matches) this.openFile(this.files[+el.dataset.i]); }));
     $('#rb-black').addEventListener('click', () => this.toggleBlackout());
     const send = $('#bank-send');
     if (send) {
       send.addEventListener('click', () => this.transfer());
       $('#bank-amount').addEventListener('keydown', (e) => e.stopPropagation());
     }
+  }
+
+  // Werte der Taskleiste (von main.js jedes Frame)
+  setStats({ personal, team, quota, review, clock, date }) {
+    $('#tb-personal').textContent = `PERSÖNLICH ${euro(personal)}`;
+    $('#tb-team').textContent = `TEAM ${euro(team)}`;
+    $('#tb-quota').textContent = `QUOTE ${euro(quota)}`;
+    $('#tb-review').textContent = `BEURTEILUNG ${review}`;
+    $('#tb-clock').textContent = clock;
+    $('#tb-date').textContent = date;
   }
 }

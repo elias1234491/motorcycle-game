@@ -12,8 +12,19 @@
       "techSkill": 0.1,
       "money": 4200,
       "bank": "Raiffeisenkasse Hintertupfing",
-      "voice": { "pitch": 1.3, "rate": 0.85 },
-      "scambaiter": false
+      "voice": {
+        "pitch": 1.3,
+        "rate": 0.85
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#f1c9a5",
+        "hair": "#d9d9d9",
+        "style": "bun",
+        "glasses": true,
+        "beard": false,
+        "bg": "#4f9a8f"
+      }
     },
     {
       "id": "horst",
@@ -26,8 +37,19 @@
       "techSkill": 0.2,
       "money": 9800,
       "bank": "Sparbuch-Bank Ruhr",
-      "voice": { "pitch": 0.7, "rate": 0.95 },
-      "scambaiter": false
+      "voice": {
+        "pitch": 0.7,
+        "rate": 0.95
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#e8b48f",
+        "hair": "#9a9a9a",
+        "style": "bald",
+        "glasses": false,
+        "beard": true,
+        "bg": "#5b7fa8"
+      }
     },
     {
       "id": "chantal",
@@ -40,8 +62,19 @@
       "techSkill": 0.4,
       "money": 1900,
       "bank": "NeoBank Glitzer",
-      "voice": { "pitch": 1.4, "rate": 1.15 },
-      "scambaiter": false
+      "voice": {
+        "pitch": 1.4,
+        "rate": 1.15
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#f0c29a",
+        "hair": "#f2d16b",
+        "style": "long",
+        "glasses": false,
+        "beard": false,
+        "bg": "#b65f9a"
+      }
     },
     {
       "id": "pfennig",
@@ -54,8 +87,19 @@
       "techSkill": 0.5,
       "money": 38000,
       "bank": "Privatbank von Geldsack & Söhne",
-      "voice": { "pitch": 0.9, "rate": 1.0 },
-      "scambaiter": false
+      "voice": {
+        "pitch": 0.9,
+        "rate": 1.0
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#e9bf98",
+        "hair": "#4a3426",
+        "style": "short",
+        "glasses": true,
+        "beard": false,
+        "bg": "#6a7fb0"
+      }
     },
     {
       "id": "bernd",
@@ -68,8 +112,19 @@
       "techSkill": 0.3,
       "money": 6500,
       "bank": "Volksbank Bielefeld-Gibt's-Nicht",
-      "voice": { "pitch": 1.0, "rate": 1.05 },
-      "scambaiter": false
+      "voice": {
+        "pitch": 1.0,
+        "rate": 1.05
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#d9a27a",
+        "hair": "#6b4a2e",
+        "style": "short",
+        "glasses": false,
+        "beard": true,
+        "bg": "#c9883a"
+      }
     },
     {
       "id": "kevin",
@@ -82,8 +137,19 @@
       "techSkill": 0.9,
       "money": 900000,
       "bank": "Fake-Bank (virtuelle Maschine)",
-      "voice": { "pitch": 0.8, "rate": 0.9 },
-      "scambaiter": true
+      "voice": {
+        "pitch": 0.8,
+        "rate": 0.9
+      },
+      "scambaiter": true,
+      "look": {
+        "skin": "#e2b08a",
+        "hair": "#bdbdbd",
+        "style": "short",
+        "glasses": true,
+        "beard": false,
+        "bg": "#4f9a8f"
+      }
     },
     {
       "id": "lisa",
@@ -96,8 +162,19 @@
       "techSkill": 0.95,
       "money": 250000,
       "bank": "Fake-Bank (virtuelle Maschine)",
-      "voice": { "pitch": 1.15, "rate": 1.05 },
-      "scambaiter": true
+      "voice": {
+        "pitch": 1.15,
+        "rate": 1.05
+      },
+      "scambaiter": true,
+      "look": {
+        "skin": "#e7b994",
+        "hair": "#7a3b1e",
+        "style": "long",
+        "glasses": false,
+        "beard": false,
+        "bg": "#8a6bb0"
+      }
     }
   ]
 }

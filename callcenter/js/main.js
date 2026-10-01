@@ -1,7 +1,7 @@
-// Callcenter Chaos - Hauptspiel: 3D-Büro in Ego-Sicht, Tagesablauf, Chef, Chaos-Events, Koop.
+// Callcenter Chaos - Hauptspiel: 3D-Büro in Third-Person (wie im Original), Tagesablauf, Chef, Chaos-Events, Koop.
 import * as THREE from 'three';
 import { CONFIG, SCAMS } from '../config.js';
-import { buildOffice, makeAvatar, textSprite, ROOM } from './office.js';
+import { buildOffice, makeAvatar, animateAvatar, textSprite, ROOM } from './office.js';
 import { Computer } from './computer.js';
 import { Net, netAvailable, initNet } from './net.js';
 import { think, brainMode, BRAIN_LABEL, getApiKey, setApiKey, preloadBrain, initBrain, inClaude } from './brain.js';
@@ -9,19 +9,23 @@ import * as voice from './voice.js';
 
 const $ = (s) => document.querySelector(s);
 const euro = (n) => Math.round(n).toLocaleString('de-DE') + ' €';
-const COLORS = [0x3b82f6, 0x22c55e, 0xf59e0b, 0xec4899, 0x8b5cf6, 0x14b8a6];
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SHIRTS = [0x2bb3a8, 0xd8452e, 0x3b6fd8, 0x2f9e44, 0xe0a020, 0x8b5cf6];
+const START_DATE = new Date(2026, 7, 24); // Montag, 24. Aug. 2026
 
 class Game {
   constructor() {
     this.net = new Net();
     this.phase = 'menu';           // menu | work | review | fired
     this.day = 1;
-    this.time = 0;                 // Sekunden im Arbeitstag
+    this.time = 0;
     this.earned = 0;
+    this.personal = 0;
+    this.board = {};               // Name -> heutiger Umsatz
     this.events = [];
     this.keys = {};
-    this.yaw = 0; this.pitch = 0;
-    this.pos = new THREE.Vector3(-5.5, 1.6, 6);
+    this.yaw = Math.PI; this.pitch = -0.15;
+    this.pos = new THREE.Vector3(-5.5, 0, 0.0);
     this.seated = null;
     this.held = null;
     this.coffeeUntil = 0;
@@ -34,36 +38,64 @@ class Game {
 
   get quota() { return Math.round(CONFIG.BASE_QUOTA * Math.pow(CONFIG.QUOTA_GROWTH, this.day - 1) / 50) * 50; }
   get clock() {
-    const mins = 9 * 60 + Math.floor((this.time / CONFIG.DAY_SECONDS) * 8 * 60);
+    const mins = 9 * 60 + Math.floor((Math.min(this.time, CONFIG.DAY_SECONDS) / CONFIG.DAY_SECONDS) * 8 * 60);
     return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  }
+  get dateLabel() {
+    const d = new Date(START_DATE); d.setDate(d.getDate() + this.day - 1);
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  get reviewIn() {
+    const s = Math.max(0, Math.ceil(CONFIG.DAY_SECONDS - this.time));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
   async init() {
+    // Schriften laden, bevor Namensschilder und Zettel gezeichnet werden
+    await Promise.race([
+      Promise.all(['700 64px Fredoka', '26px "Permanent Marker"', '500 24px Rubik', '64px "Alfa Slab One"'].map(f => document.fonts.load(f).catch(() => {}))),
+      new Promise(r => setTimeout(r, 2500)),
+    ]);
     this.personas = (await (await fetch('personas.json')).json()).callers;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     document.body.prepend(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x202630);
-    this.camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 100);
+    this.scene.background = new THREE.Color(0x24170f);
+    this.camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.05, 100);
+    this.webcam = new THREE.PerspectiveCamera(72, 16 / 9, 0.05, 30);
     this.office = buildOffice(this.scene);
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = 2.6;
+    this.camRay = new THREE.Raycaster();
     this.computer = new Computer(this);
 
-    this.boss = makeAvatar(0x2a2a2a, 'Chef Brenner', { tie: true, skin: 0xe8a888 });
+    this.boss = makeAvatar(0x2b2b33, 'Chef Brenner', { tie: true, skin: 0xe39a6a, mustache: true });
     this.boss.position.set(9, 0, 2);
     this.scene.add(this.boss);
-    this.bossPath = [[9, 2], [6, 0], [2, 0], [-5.5, -1], [-5.5, 5.5], [-10, 0], [2, 0], [6, 0]];
+    this.bossPath = [[9, 2], [6, 0], [2, 0], [-1, -1], [-10.5, -0.5], [-10.5, 6], [-1.5, 6.5], [2, 0], [6, 0]];
     this.bossTarget = 0;
     this.bossLine = 0;
+
+    // Kollegen-Figuren als Deko im Menü
+    this.menuCrew = [0, 1, 2].map(i => {
+      const a = makeAvatar(SHIRTS[i], ['Ahmed', 'Hypercat', 'Kit'][i]);
+      const d = this.office.desks[i + 1];
+      a.position.set(d.chairPos.x, -0.33, d.chairPos.z); a.rotation.y = d.rotY;
+      animateAvatar(a, 0, 0, true);
+      this.scene.add(a);
+      return a;
+    });
 
     addEventListener('resize', () => {
       this.camera.aspect = innerWidth / innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(innerWidth, innerHeight);
+      if (this.computer.isOpen) this.computer.layout();
     });
     this.bindInput();
     this.bindMenu();
@@ -96,18 +128,14 @@ class Game {
         : 'Online-Koop ist noch nicht eingerichtet (Supabase in config.js eintragen).';
     };
     refreshNet();
-    // Fähigkeiten von Claude kommen asynchron an
     Promise.all([initBrain(), initNet()]).then(() => { refreshMode(); refreshNet(); });
     const me = () => {
       const n = name.value.trim() || 'Praktikant ' + Math.floor(Math.random() * 99);
       try { localStorage.setItem('ccc_name', n); } catch {}
-      return { name: n.slice(0, 16), color: COLORS[Math.floor(Math.random() * COLORS.length)] };
+      return { name: n.slice(0, 16), color: SHIRTS[Math.floor(Math.random() * SHIRTS.length)] };
     };
     $('#m-solo').addEventListener('click', () => this.start(me()));
-    $('#m-host').addEventListener('click', () => {
-      const code = Math.random().toString(36).slice(2, 7).toUpperCase();
-      this.start(me(), code);
-    });
+    $('#m-host').addEventListener('click', () => this.start(me(), Math.random().toString(36).slice(2, 7).toUpperCase()));
     $('#m-join').addEventListener('click', () => {
       const code = $('#m-room').value.trim().toUpperCase();
       if (!code) { $('#m-netinfo').textContent = 'Bitte Raum-Code eingeben.'; return; }
@@ -122,12 +150,16 @@ class Game {
       try {
         await this.net.join(room, me);
       } catch (e) {
-        $('#m-netinfo').textContent = '❌ ' + e.message;
+        $('#m-netinfo').textContent = e.message;
         return;
       }
       $('#room-code').textContent = `Raum-Code: ${room}`;
-      setTimeout(() => this.toast(`👥 Raum-Code: ${room} - Freunde öffnen dieselbe Seite und treten damit bei`), 800);
+      setTimeout(() => this.toast(`👥 Raum-Code ${room}: Freunde öffnen dieselbe Seite und treten damit bei`), 800);
     }
+    this.menuCrew.forEach(a => this.scene.remove(a));
+    this.player = makeAvatar(me.color, me.name);
+    this.player.userData.label.visible = false; // eigenen Namen nicht über dem Kopf zeigen
+    this.scene.add(this.player);
     $('#menu').classList.add('hide');
     $('#hud').classList.add('show');
     $('#brain-label').textContent = BRAIN_LABEL[brainMode()];
@@ -156,7 +188,7 @@ class Game {
     addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== this.renderer.domElement) return;
       this.yaw -= e.movementX * 0.0022;
-      this.pitch = Math.max(-1.4, Math.min(1.4, this.pitch - e.movementY * 0.0022));
+      this.pitch = Math.max(-0.9, Math.min(0.6, this.pitch - e.movementY * 0.0022));
     });
     addEventListener('mousedown', (e) => {
       if (this.phase === 'menu' || this.computer.isOpen) return;
@@ -177,19 +209,23 @@ class Game {
   // ---------------- Interaktion ----------------
   lookTarget() {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    this.raycaster.far = 8;
     const meshes = this.office.interactables.filter(i => !(i.type === 'prop' && i.data === this.held)).map(i => i.mesh);
-    const hit = this.raycaster.intersectObjects(meshes, false)[0];
-    return hit ? this.office.interactables.find(i => i.mesh === hit.object) : null;
+    for (const hit of this.raycaster.intersectObjects(meshes, false)) {
+      if (Math.hypot(hit.point.x - this.pos.x, hit.point.z - this.pos.z) > 2.4) continue;
+      return this.office.interactables.find(i => i.mesh === hit.object);
+    }
+    return null;
   }
 
   promptFor(t) {
     if (!t) return '';
     switch (t.type) {
-      case 'desk': return t.data.occupant ? `Platz ${t.data.index + 1} ist besetzt` : `[E] An Platz ${t.data.index + 1} setzen`;
-      case 'coffee': return '[E] Kaffee trinken (schneller laufen)';
+      case 'desk': return t.data.occupant ? 'Platz ist besetzt' : '[E] Hinsetzen';
+      case 'coffee': return '[E] Kaffee trinken';
       case 'shredder': return this.chaos?.kind === 'raid' && !this.chaos.done ? '[E] BEWEISE SCHREDDERN!' : 'Schredder';
-      case 'fuse': return this.chaos?.kind === 'power' ? '[E] Sicherung wieder einschalten!' : 'Sicherungskasten';
-      case 'prop': return this.held ? '' : `[E] ${t.data.emoji} aufheben (Klick = werfen)`;
+      case 'fuse': return this.chaos?.kind === 'power' ? '[E] Sicherung einschalten!' : 'Sicherungskasten';
+      case 'prop': return this.held ? '' : `[E] ${t.data.emoji} aufheben`;
     }
     return '';
   }
@@ -203,7 +239,6 @@ class Game {
     else if (t.type === 'coffee') { this.coffeeUntil = performance.now() + 30000; this.toast('☕ Koffein-Boost! 30 Sekunden schneller.'); voice.beep(300, 0.3, 'triangle'); }
     else if (t.type === 'shredder' && this.chaos?.kind === 'raid' && !this.chaos.done) {
       this.chaos.done = true; this.toast('📄✂️ Beweise vernichtet!'); voice.beep(200, 0.6, 'sawtooth', 0.08);
-      this.net.send('shredded', { id: this.net.id });
     }
     else if (t.type === 'fuse' && this.chaos?.kind === 'power') { this.endPower(true); this.net.send('fuse'); }
     else if (t.type === 'prop') this.pickProp(t.data);
@@ -216,7 +251,7 @@ class Game {
     this.net.send('seat', { desk: desk.index });
     document.exitPointerLock?.();
     this.computer.open(desk);
-    this.nextRingAt = Math.max(this.nextRingAt, performance.now() + 2500);
+    this.nextRingAt = Math.max(this.nextRingAt, performance.now() + 3000);
   }
 
   standUp() {
@@ -226,7 +261,8 @@ class Game {
     this.computer.close();
     this.seated.occupant = null;
     this.net.send('unseat', { desk: this.seated.index });
-    this.pos.set(this.seated.x, 1.6, this.seated.z + 1.6);
+    this.pos.copy(this.seated.standPos);
+    this.yaw = this.seated.rotY + Math.PI;
     this.seated = null;
     this.lockPointer();
   }
@@ -246,7 +282,7 @@ class Game {
   throwProp() {
     const p = this.held;
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
-    p.vel.copy(dir.multiplyScalar(11)).add(new THREE.Vector3(0, 2.5, 0));
+    p.vel.copy(dir.multiplyScalar(11)).add(new THREE.Vector3(0, 3, 0));
     p.held = null; this.held = null;
     this.net.send('prop', { i: p.i, p: p.mesh.position.toArray(), v: p.vel.toArray() });
     voice.beep(500, 0.08, 'triangle');
@@ -256,8 +292,7 @@ class Game {
     for (const p of this.office.props) {
       const m = p.mesh;
       if (p.held === this.net.id) {
-        const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
-        m.position.copy(this.camera.position).add(dir.multiplyScalar(0.8)).add(new THREE.Vector3(0, -0.25, 0));
+        m.position.set(this.pos.x - Math.sin(this.yaw) * 0.55, 1.25, this.pos.z - Math.cos(this.yaw) * 0.55);
         continue;
       }
       if (p.held) continue;
@@ -271,14 +306,14 @@ class Game {
         if (m.position[axis] < min) { m.position[axis] = min; p.vel[axis] = Math.abs(p.vel[axis]) * 0.5; }
         if (m.position[axis] > max) { m.position[axis] = max; p.vel[axis] = -Math.abs(p.vel[axis]) * 0.5; }
       }
-      if (this.boss.position.distanceTo(new THREE.Vector3(m.position.x, 1.2, m.position.z)) < 0.6 && p.vel.length() > 4) {
+      if (this.boss.position.distanceTo(new THREE.Vector3(m.position.x, 0, m.position.z)) < 0.6 && m.position.y < 2.2 && p.vel.length() > 4) {
         p.vel.multiplyScalar(-0.3);
         this.bossSay('AUA! DAS GIBT EINE ABMAHNUNG!');
       }
     }
   }
 
-  // ---------------- Bewegung ----------------
+  // ---------------- Bewegung + Third-Person-Kamera ----------------
   collides(x, z) {
     const r = 0.3;
     if (x < ROOM.minX + r || x > ROOM.maxX - r || z < ROOM.minZ + r || z > ROOM.maxZ - r) return true;
@@ -286,25 +321,46 @@ class Game {
   }
 
   updatePlayer(dt) {
+    const av = this.player;
     if (this.seated) {
       const d = this.seated;
-      this.camera.position.lerp(d.seat, Math.min(1, dt * 8));
-      const look = new THREE.Matrix4().lookAt(this.camera.position, d.lookAt, new THREE.Vector3(0, 1, 0));
-      this.camera.quaternion.slerp(new THREE.Quaternion().setFromRotationMatrix(look), Math.min(1, dt * 8));
+      av.position.set(d.chairPos.x, -0.33, d.chairPos.z);
+      av.rotation.y = d.rotY;
+      animateAvatar(av, dt, 0, true);
       return;
     }
-    const speed = (this.keys.ShiftLeft ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
-    const f = (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0);
-    const s = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
+    const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
+    const f = (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0) - (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0);
+    const s = (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) - (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0);
+    let moving = 0;
     if (f || s) {
       const len = Math.hypot(f, s);
       const dx = (-Math.sin(this.yaw) * f + Math.cos(this.yaw) * s) / len * speed * dt;
       const dz = (-Math.cos(this.yaw) * f - Math.sin(this.yaw) * s) / len * speed * dt;
       if (!this.collides(this.pos.x + dx, this.pos.z)) this.pos.x += dx;
       if (!this.collides(this.pos.x, this.pos.z + dz)) this.pos.z += dz;
+      moving = speed;
+      const targetRot = Math.atan2(-dx, -dz);
+      let diff = targetRot - av.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      av.rotation.y += diff * Math.min(1, dt * 12);
     }
-    this.camera.position.lerp(this.pos, Math.min(1, dt * 20));
-    this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
+    av.position.set(this.pos.x, 0, this.pos.z);
+    animateAvatar(av, dt, moving, false);
+
+    // Kamera hinter und über der Figur, stoppt vor Wänden
+    const target = new THREE.Vector3(this.pos.x, 1.75, this.pos.z);
+    const back = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), -Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch));
+    let dist = 3.1;
+    this.camRay.set(target, back); this.camRay.far = dist;
+    const hit = this.camRay.intersectObjects(this.office.solids, false)[0];
+    if (hit) dist = Math.max(0.6, hit.distance - 0.2);
+    // leicht über die rechte Schulter, wie im Original
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)).multiplyScalar(0.55 * Math.min(1, dist / 3.1));
+    const camPos = target.clone().addScaledVector(back, dist).add(right);
+    camPos.y = Math.min(ROOM.h - 0.15, Math.max(0.4, camPos.y));
+    this.camera.position.lerp(camPos, Math.min(1, dt * 14));
+    this.camera.lookAt(target.x - Math.sin(this.yaw) * 2 + right.x, 1.45 + Math.sin(this.pitch) * 2, target.z - Math.cos(this.yaw) * 2 + right.z);
   }
 
   // ---------------- Chef-NPC ----------------
@@ -316,12 +372,13 @@ class Game {
   }
 
   updateBoss(dt) {
-    if (this.phase !== 'work') return;
+    if (this.phase !== 'work') { animateAvatar(this.boss, dt, 0, false); return; }
     const [tx, tz] = this.bossPath[this.bossTarget];
     const b = this.boss.position;
     const dx = tx - b.x, dz = tz - b.z, d = Math.hypot(dx, dz);
     if (d < 0.2) this.bossTarget = (this.bossTarget + 1) % this.bossPath.length;
     else { b.x += dx / d * 1.3 * dt; b.z += dz / d * 1.3 * dt; this.boss.rotation.y = Math.atan2(-dx, -dz); }
+    animateAvatar(this.boss, dt, 1.3, false);
     if (!this.seated && b.distanceTo(new THREE.Vector3(this.pos.x, 0, this.pos.z)) < 2.2 && Math.random() < dt) {
       this.bossSay(['ZURÜCK AN DIE ARBEIT!', 'Pause ist für SCHWACHE!', 'Ich zähle die Sekunden ...', 'Die Quote macht sich nicht von allein!'][Math.floor(Math.random() * 4)]);
     }
@@ -329,8 +386,8 @@ class Game {
 
   showBubble(obj, text, ms = 4000) {
     if (obj.userData.bubble) obj.remove(obj.userData.bubble);
-    const s = textSprite(text.length > 34 ? text.slice(0, 33) + '…' : text, '#111', 'rgba(255,255,255,0.92)', 0.9);
-    s.position.y = obj.userData.label ? 2.45 : 1.9;
+    const s = textSprite(text.length > 34 ? text.slice(0, 33) + '…' : text, '#111', 'rgba(255,255,255,0.94)', 0.9);
+    s.position.y = 2.85;
     obj.add(s);
     obj.userData.bubble = s;
     clearTimeout(obj.userData.bubbleT);
@@ -354,17 +411,16 @@ class Game {
     const ringing = pc.call?.state === 'ringing';
     for (const d of this.office.desks) d.phoneLight.material.emissiveIntensity = 0;
     if (this.seated && ringing) {
-      this.seated.phoneLight.material.emissiveIntensity = Math.sin(now / 120) > 0 ? 2 : 0;
+      this.seated.phoneLight.material.emissiveIntensity = Math.sin(now / 120) > 0 ? 3 : 0;
       if (now - (this.lastRingSound || 0) > 1600) { voice.ring(); this.lastRingSound = now; }
       if (now - pc.call.ringStart > 20000) pc.missCall();
     }
     if (this.phase !== 'work' || !this.seated || pc.call || this.chaos?.kind === 'power') return;
     if (now < this.nextRingAt) return;
     const scams = SCAMS.filter(s => s.day <= this.day);
-    const scam = scams[Math.floor(Math.random() * scams.length)];
     pc.ring({
       persona: this.pickCaller(),
-      scam,
+      scam: scams[Math.floor(Math.random() * scams.length)],
       number: '+49 ' + (150 + Math.floor(Math.random() * 30)) + ' ' + Math.floor(1e6 + Math.random() * 9e6),
       code: String(Math.floor(100000 + Math.random() * 900000)),
     });
@@ -375,10 +431,20 @@ class Game {
   }
 
   // ---------------- Geld & Strafen ----------------
+  payout(amount) {
+    const el = $('#payout');
+    el.textContent = `+${euro(amount)}`;
+    el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  }
+
   addEarnings(amount, msg) {
     this.toast(msg);
-    if (this.net.isHost) { this.earned += amount; this.broadcastState(); }
-    else { this.earned += amount; this.net.send('earn', { amount, name: this.me.name }); }
+    this.payout(amount);
+    this.personal += amount;
+    this.earned += amount;
+    this.board[this.me.name] = (this.board[this.me.name] || 0) + amount;
+    if (this.net.isHost) this.broadcastState();
+    else this.net.send('earn', { amount, name: this.me.name });
   }
 
   penalty(pct, reason) {
@@ -395,9 +461,11 @@ class Game {
 
   // ---------------- Tagesablauf (Host) ----------------
   startDay(day) {
+    if (day === 1) this.personal = 0;
     this.day = day;
     this.time = 0;
     this.earned = 0;
+    this.board = {};
     this.events = [];
     this.phase = 'work';
     this.chaosPlan = day >= 2 ? [{ at: CONFIG.DAY_SECONDS * (0.3 + Math.random() * 0.4), kind: Math.random() < 0.5 || day < 3 ? 'raid' : 'power' }] : [];
@@ -408,6 +476,8 @@ class Game {
 
   onDayStart() {
     $('#review').classList.remove('show');
+    if (this.day === 1) this.personal = 0;
+    this.office.setFired(false);
     const newScam = SCAMS.find(s => s.day === this.day);
     this.toast(`☀️ Tag ${this.day} beginnt! Quote: ${euro(this.quota)}`);
     if (newScam) setTimeout(() => this.toast(`🔓 Neue Masche freigeschaltet: ${newScam.icon} ${newScam.name}`), 1500);
@@ -416,7 +486,7 @@ class Game {
   }
 
   broadcastState() {
-    this.net.send('state', { day: this.day, time: this.time, earned: this.earned, phase: this.phase, events: this.events.slice(-6) });
+    this.net.send('state', { day: this.day, time: this.time, earned: this.earned, phase: this.phase, events: this.events.slice(-6), board: Object.entries(this.board).slice(0, 8) });
   }
 
   hostTick(dt) {
@@ -429,12 +499,17 @@ class Game {
     if (this.time >= CONFIG.DAY_SECONDS) this.endDay();
   }
 
+  rankedBoard() {
+    const names = new Set([this.me?.name, ...[...this.net.peers.values()].map(p => p.name), ...Object.keys(this.board)]);
+    return [...names].filter(Boolean).map(n => [n, this.board[n] || 0]).sort((a, b) => b[1] - a[1]);
+  }
+
   async endDay() {
     this.time = CONFIG.DAY_SECONDS;
     this.phase = 'review';
     this.broadcastState();
     const passed = this.earned >= this.quota;
-    const stats = { day: this.day, quota: this.quota, earned: this.earned, passed, events: this.events.join('; ') };
+    const stats = { day: this.day, quota: this.quota, earned: this.earned, passed, events: this.events.join('; '), board: this.rankedBoard() };
     this.showReview(stats, null);
     const res = await think({ mode: 'boss', stats });
     this.showReview(stats, res.say);
@@ -449,32 +524,41 @@ class Game {
     if (this.chaos?.kind === 'power') this.endPower(false);
     this.chaos = null;
     this.banner('');
-    const r = $('#review');
-    r.classList.add('show');
-    $('#rv-title').textContent = stats.passed ? `Leistungsbeurteilung - Tag ${stats.day}` : 'GEFEUERT!';
-    $('#rv-stats').innerHTML = `Eingenommen: <b>${euro(stats.earned)}</b> · Quote: <b>${euro(stats.quota)}</b>`;
-    $('#rv-boss').textContent = text ?? 'Herr Brenner holt tief Luft ...';
+    this.office.setFired(!stats.passed);
+    $('#review').classList.add('show');
+    $('#rv-eyebrow').textContent = stats.passed ? 'Callcenter Chaos · Leistungsbericht' : 'Callcenter Chaos · Kündigungsbericht';
+    $('#rv-title').textContent = stats.passed ? `Tag ${stats.day} überstanden` : 'Alle gefeuert';
+    const days = stats.passed ? stats.day : stats.day - 1;
+    $('#rv-days').textContent = `${days} ${days === 1 ? 'TAG' : 'TAGE'}`;
+    $('#rv-team').textContent = euro(stats.earned);
+    $('#rv-quota').textContent = `TEAM-UMSATZ · QUOTE ${euro(stats.quota)}`;
+    const board = stats.board?.length ? stats.board : [[this.me?.name || 'Du', stats.earned]];
+    const top = Math.max(1, ...board.map(b => b[1]));
+    const total = Math.max(1, board.reduce((a, b) => a + b[1], 0));
+    $('#rv-rows').innerHTML = board.map(([n, v], i) => `<div class="rrow ${i === 0 ? 'first' : ''}">
+        <span class="rk">#${i + 1}</span>
+        <div style="min-width:0"><div class="nm">${esc(n)}</div><div class="barw"><i style="width:${Math.round(v / top * 100)}%"></i></div></div>
+        <span class="v">${euro(v)}</span><span class="s">${Math.round(v / total * 100)}%</span></div>`).join('');
+    $('#rv-boss').innerHTML = `<b>Herr Brenner:</b> ${esc(text ?? 'holt tief Luft ...')}`;
     if (text) voice.speak(text, { pitch: 0.6, rate: 1.1 });
     const btn = $('#rv-next');
-    btn.style.display = this.net.isHost && text ? '' : 'none';
-    btn.textContent = stats.passed ? `Weiter zu Tag ${stats.day + 1}` : 'Neuer Run (Tag 1)';
+    btn.hidden = !(this.net.isHost && text);
+    btn.textContent = stats.passed ? `Weiter zu Tag ${stats.day + 1}` : 'Neuer Run';
     btn.onclick = () => { voice.stopSpeaking(); this.startDay(stats.passed ? stats.day + 1 : 1); };
-    $('#rv-wait').style.display = this.net.isHost ? 'none' : '';
-    $('#rv-result').textContent = stats.passed ? '✅ Quote geschafft - ihr dürft bleiben.' : `❌ Quote verfehlt. Ihr habt ${stats.day - 1} Tag(e) überlebt.`;
+    $('#rv-wait').hidden = this.net.isHost;
+    $('#rv-result').textContent = stats.passed ? 'Quote geschafft. Ihr dürft bleiben.' : `Quote verfehlt. Ihr habt ${days} ${days === 1 ? 'Tag' : 'Tage'} überlebt.`;
   }
 
   // ---------------- Chaos-Events ----------------
   startChaos(kind) {
     if (kind === 'raid') {
-      this.chaos = { kind, until: performance.now() + 25000, done: false, shredders: new Set() };
+      this.chaos = { kind, until: performance.now() + 25000, done: false };
       voice.buzz();
-      this.banner('🚨 POLIZEIRAZZIA! Alle zum Schredder (Ecke vorne) und Beweise vernichten! 🚨');
-      if (this.seated) this.toast('🚨 Steh auf und lauf zum SCHREDDER!');
+      this.banner('🚨 POLIZEIRAZZIA! Alle zum Schredder (vorne rechts) und Beweise vernichten! 🚨');
+      if (this.seated) this.toast('🚨 Steh auf (Esc) und lauf zum SCHREDDER!');
     } else {
       this.chaos = { kind, until: performance.now() + 30000 };
-      this.office.lights.forEach(l => (l.intensity = 0));
-      this.office.hemi.intensity = 0.08;
-      this.office.screens.forEach(s => (s.material.emissiveIntensity = 0));
+      this.office.setPower(false);
       if (this.computer.call && this.computer.call.state !== 'ended') this.computer.endCall('Stromausfall! Die Leitung ist tot.');
       if (this.seated) this.standUp();
       this.banner('⚡ STROMAUSFALL! Jemand muss zum Sicherungskasten (hintere Wand)! ⚡');
@@ -484,9 +568,7 @@ class Game {
   endPower(fixed) {
     if (this.chaos?.kind !== 'power') return;
     this.chaos = null;
-    this.office.lights.forEach(l => (l.intensity = 7));
-    this.office.hemi.intensity = 0.7;
-    this.office.screens.forEach(s => (s.material.emissiveIntensity = 0.8));
+    this.office.setPower(true);
     this.banner('');
     this.toast(fixed ? '💡 Strom ist wieder da!' : '💡 Der Hausmeister hat die Sicherung repariert.');
   }
@@ -519,7 +601,7 @@ class Game {
     n.on('join', (p) => {
       const av = makeAvatar(p.color, p.name);
       this.scene.add(av);
-      this.remotes.set(p.id, { av, target: new THREE.Vector3(-5.5, 0, 6), ry: 0, name: p.name });
+      this.remotes.set(p.id, { av, target: new THREE.Vector3(-5.5, 0, 0), last: new THREE.Vector3(), ry: 0, name: p.name });
       this.toast(`👋 ${p.name} ist da`);
       if (n.isHost) this.broadcastState();
     });
@@ -537,8 +619,8 @@ class Game {
       const r = this.remotes.get(m.from);
       if (r) { r.target.set(m.x, 0, m.z); r.ry = m.ry; }
     });
-    n.on('seat', (m) => { this.office.desks[m.desk].occupant = m.from; });
-    n.on('unseat', (m) => { if (this.office.desks[m.desk].occupant === m.from) this.office.desks[m.desk].occupant = null; });
+    n.on('seat', (m) => { if (this.office.desks[m.desk]) this.office.desks[m.desk].occupant = m.from; });
+    n.on('unseat', (m) => { const d = this.office.desks[m.desk]; if (d && d.occupant === m.from) d.occupant = null; });
     n.on('bubble', (m) => {
       const r = this.remotes.get(m.from);
       if (r) this.showBubble(r.av, m.text, 5000);
@@ -553,13 +635,16 @@ class Game {
     n.on('state', (m) => {
       if (n.isHost) return;
       const newDay = m.phase === 'work' && (this.phase !== 'work' || m.day !== this.day);
-      Object.assign(this, { day: m.day, time: m.time, earned: m.earned, events: m.events });
-      this.phase = m.phase === 'fired' ? 'fired' : m.phase;
+      if (newDay && m.day === 1) this.personal = 0;
+      Object.assign(this, { day: m.day, time: m.time, earned: m.earned, events: m.events || [] });
+      if (Array.isArray(m.board)) this.board = Object.fromEntries(m.board);
+      this.phase = m.phase;
       if (newDay) this.onDayStart();
     });
     n.on('earn', (m) => {
       if (!n.isHost) return;
       this.earned += m.amount;
+      this.board[m.name] = (this.board[m.name] || 0) + m.amount;
       this.toast(`💰 ${m.name}: +${euro(m.amount)}`);
       this.broadcastState();
     });
@@ -577,7 +662,7 @@ class Game {
 
   renderPlayers() {
     const names = [this.me?.name + ' (du)', ...[...this.net.peers.values()].map(p => p.name)];
-    $('#players').innerHTML = this.net.online ? names.map(n => `<div>👤 ${n}</div>`).join('') : '';
+    $('#players').innerHTML = this.net.online ? names.map(nm => `<div>🎧 ${esc(nm)}</div>`).join('') : '';
   }
 
   syncNet(dt) {
@@ -585,13 +670,23 @@ class Game {
     this.posT = (this.posT || 0) + dt;
     if (this.posT > 0.1) {
       this.posT = 0;
-      const p = this.seated ? this.seated.seat : this.pos;
-      this.net.send('pos', { x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.yaw.toFixed(2) });
+      const p = this.seated ? this.seated.chairPos : this.pos;
+      this.net.send('pos', { x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.player.rotation.y.toFixed(2) });
       if (this.held) this.net.send('prop', { i: this.held.i, p: this.held.mesh.position.toArray(), v: [0, 0, 0], held: this.net.id });
     }
-    for (const r of this.remotes.values()) {
+    for (const [id, r] of this.remotes) {
+      const desk = this.office.desks.find(d => d.occupant === id);
+      if (desk) {
+        r.av.position.set(desk.chairPos.x, -0.33, desk.chairPos.z);
+        r.av.rotation.y = desk.rotY;
+        animateAvatar(r.av, dt, 0, true);
+        continue;
+      }
+      r.last.copy(r.av.position);
       r.av.position.lerp(r.target, Math.min(1, dt * 10));
+      r.av.position.y = 0;
       r.av.rotation.y = r.ry;
+      animateAvatar(r.av, dt, r.last.distanceTo(r.av.position) / Math.max(dt, 0.001), false);
     }
   }
 
@@ -606,22 +701,49 @@ class Game {
   }
 
   updateHUD() {
-    $('#h-day').textContent = `Tag ${this.day}`;
-    $('#h-clock').textContent = this.clock;
-    $('#h-money').textContent = `${euro(this.earned)} / ${euro(this.quota)}`;
-    const p = Math.min(1, this.earned / this.quota);
-    $('#h-bar').style.width = p * 100 + '%';
-    $('#h-bar').style.background = p >= 1 ? '#3c3' : '#f63';
+    const stats = { personal: this.personal, team: this.earned, quota: this.quota, review: this.reviewIn, clock: this.clock, date: this.dateLabel };
+    $('#h-personal').textContent = `PERSÖNLICH ${euro(stats.personal)}`;
+    $('#h-team').textContent = `TEAM ${euro(stats.team)}`;
+    $('#h-quota').textContent = `QUOTE ${euro(stats.quota)}`;
+    $('#h-review').textContent = `BEURTEILUNG ${stats.review}`;
+    $('#h-clock').textContent = stats.clock;
+    $('#h-date').textContent = stats.date;
+    if (this.computer.isOpen) this.computer.setStats(stats);
     const t = !this.seated && this.phase !== 'menu' ? this.lookTarget() : null;
     $('#prompt').textContent = this.held ? '[E] fallen lassen · [Klick] werfen' : this.promptFor(t);
-    if ((this.wbT = (this.wbT || 0) + 1) % 30 === 0) this.office.updateWhiteboard({ day: this.day, clock: this.clock, earned: this.earned, quota: this.quota });
+    if ((this.wbT = (this.wbT || 0) + 1) % 30 === 0) this.office.updateWhiteboard({ day: this.day, clock: this.clock, earned: this.earned, quota: this.quota, board: this.rankedBoard() });
+  }
+
+  // Webcam-Bild der eigenen Figur ins Kamera-Fenster zeichnen (wie im Original)
+  renderWebcam() {
+    const d = this.seated, cv = this.computer.camCanvas;
+    this.webcam.position.copy(d.webcam);
+    this.webcam.lookAt(d.chairPos.x, 1.45, d.chairPos.z);
+    const pr = this.renderer.getPixelRatio();
+    const w = cv.width / pr, h = cv.height / pr;
+    this.renderer.setScissorTest(true);
+    this.renderer.setViewport(0, 0, w, h);
+    this.renderer.setScissor(0, 0, w, h);
+    this.renderer.render(this.scene, this.webcam);
+    const src = this.renderer.domElement;
+    cv.getContext('2d').drawImage(src, 0, src.height - cv.height, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, innerWidth, innerHeight);
   }
 
   frame() {
     const dt = Math.min(0.05, this.clock3.getDelta());
+    const t = performance.now() / 1000;
+    this.office.update(t);
     if (this.phase !== 'menu') {
       if (this.net.isHost) this.hostTick(dt);
       this.updatePlayer(dt);
+      if (this.phase === 'review' || this.phase === 'fired') {
+        // Kamerafahrt über das Büro während der Beurteilung
+        const a = t / 7;
+        this.camera.position.set(-4 + Math.sin(a) * 6, 4.2, 1 + Math.cos(a) * 4.5);
+        this.camera.lookAt(-4, 0.8, 0);
+      }
       this.updateProps(dt);
       this.updateBoss(dt);
       this.updateCalls();
@@ -629,9 +751,13 @@ class Game {
       this.syncNet(dt);
       this.updateHUD();
     } else {
-      const t = performance.now() / 6000;
-      this.camera.position.set(Math.sin(t) * 3 - 3, 2.4, Math.cos(t) * 3 + 2);
-      this.camera.lookAt(-4, 1, -1);
+      const a = t / 9;
+      this.camera.position.set(-5.5 + Math.sin(a) * 4.5, 2.6, -0.5 + Math.cos(a) * 2.2);
+      this.camera.lookAt(-5.5, 1.1, -0.5);
+    }
+    if (this.seated && this.computer.isOpen) {
+      if (this.computer.camVisible && (this.camFrame = (this.camFrame || 0) + 1) % 2 === 0) this.renderWebcam();
+      return; // der Desktop deckt die 3D-Ansicht komplett ab
     }
     this.renderer.render(this.scene, this.camera);
   }
