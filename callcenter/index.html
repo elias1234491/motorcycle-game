@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Callcenter Chaos</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#111;font-family:Segoe UI,Arial,sans-serif;color:#eee}
+canvas{display:block}
+button{font:inherit;cursor:pointer}
+input,textarea{font:inherit}
+
+/* Menü */
+#menu{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,rgba(30,40,70,.75),rgba(5,5,10,.92))}
+#menu.hide{display:none}
+.mbox{width:min(460px,92vw);padding:28px;background:rgba(18,22,32,.95);border:1px solid #334;border-radius:18px;box-shadow:0 20px 60px #000a}
+.mbox h1{font-size:38px;letter-spacing:1px;color:#ffcf3f;text-shadow:0 0 24px #ffb00055}
+.mbox .sub{color:#99a;margin:4px 0 20px;font-size:14px}
+.mbox label{display:block;font-size:12px;color:#99a;margin:12px 0 4px}
+.mbox input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #445;background:#0c0f16;color:#fff}
+.row2{display:flex;gap:8px}
+.row2 input{flex:1}
+.btn{padding:11px 16px;border:none;border-radius:10px;background:#2d3550;color:#fff;font-weight:600}
+.btn:hover:not(:disabled){filter:brightness(1.25)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.big{width:100%;margin-top:16px;padding:14px;font-size:17px;background:linear-gradient(135deg,#ffb000,#ff6a00);color:#1a1000}
+#m-netinfo{font-size:12px;color:#f99;margin-top:8px;min-height:16px}
+#m-brain{font-size:12px;color:#8f8;margin-top:6px}
+.help{font-size:12px;color:#889;margin-top:16px;line-height:1.6}
+.help kbd{background:#2a2f3d;border-radius:4px;padding:1px 6px;color:#fff}
+
+/* HUD */
+#hud{display:none}
+#hud.show{display:block}
+#hud-top{position:fixed;top:12px;left:12px;background:rgba(0,0,0,.55);padding:10px 14px;border-radius:12px;min-width:220px;z-index:5}
+#hud-top .t{display:flex;justify-content:space-between;font-weight:700}
+#h-clock{color:#ffcf3f}
+#h-money{font-size:13px;margin-top:4px}
+.bar{height:8px;background:#333;border-radius:4px;margin-top:6px;overflow:hidden}
+#h-bar{height:100%;width:0;transition:width .4s}
+#room-code{font-size:12px;color:#8cf;margin-top:6px}
+#brain-label{font-size:11px;color:#8a8;margin-top:2px}
+#players{position:fixed;top:12px;right:12px;background:rgba(0,0,0,.5);padding:8px 12px;border-radius:10px;font-size:13px;z-index:5}
+#players:empty{display:none}
+#crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff;opacity:.8;z-index:5;pointer-events:none}
+#prompt{position:fixed;left:50%;top:calc(50% + 26px);transform:translateX(-50%);font-weight:700;text-shadow:0 2px 6px #000;z-index:5;pointer-events:none}
+#toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;z-index:60;pointer-events:none}
+.toast{background:rgba(10,12,20,.9);border:1px solid #445;padding:8px 16px;border-radius:10px;transition:opacity .6s,transform .6s}
+.toast.out{opacity:0;transform:translateY(10px)}
+#banner{display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#b00;color:#fff;padding:10px 20px;border-radius:12px;font-weight:800;z-index:40;text-align:center;animation:flash .6s infinite alternate;max-width:90vw}
+#banner.show{display:block}
+@keyframes flash{to{background:#1040d0}}
+#paused{display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,.4);z-index:20;font-size:20px;font-weight:700;pointer-events:none}
+#paused.show{display:flex}
+#hints{position:fixed;right:12px;bottom:12px;font-size:12px;color:#aab;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:10px;line-height:1.6;z-index:5}
+
+/* PC */
+#pc{display:none;position:fixed;inset:0;z-index:30;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}
+#pc.show{display:flex}
+.monitor{position:relative;width:min(1000px,96vw);height:min(640px,90vh);background:#1b1f27;border:14px solid #2b2f37;border-radius:14px;box-shadow:0 30px 80px #000c;display:flex;flex-direction:column;overflow:hidden}
+.pc-top{display:flex;align-items:center;gap:12px;padding:6px 10px;background:linear-gradient(#2f6fd6,#1f4fa6);font-size:13px;font-weight:700}
+.pc-top span{flex:1}
+.pc-top button{background:#d33;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-weight:700}
+.pc-body{flex:1;display:flex;min-height:0}
+.pc-side{width:130px;background:#12151b;display:flex;flex-direction:column;padding:8px;gap:6px}
+.pc-side button{position:relative;text-align:left;padding:10px;border:none;border-radius:8px;background:transparent;color:#ccd}
+.pc-side button.active{background:#2a3350;color:#fff}
+#phone-tab-dot{position:absolute;right:8px;top:12px;width:10px;height:10px;border-radius:50%;background:#f33;animation:flash .3s infinite alternate}
+.pc-main{flex:1;position:relative;min-width:0;background:#0f1218}
+.app{display:none;position:absolute;inset:0;padding:14px;flex-direction:column;gap:10px}
+.app.show{display:flex}
+#phone-idle,#phone-ring{margin:auto;text-align:center;max-width:520px}
+.big-emoji{font-size:64px}
+#phone-ring .ringnum{font-size:26px;font-weight:800;margin:8px 0}
+#ring-lure{color:#ccd;font-size:14px;margin:8px 0;line-height:1.5}
+#ring-tip{color:#ffcf3f;font-size:13px}
+#ring-scam{display:inline-block;background:#2a3350;padding:3px 10px;border-radius:20px;font-size:13px}
+.ringbtns{display:flex;gap:12px;justify-content:center;margin-top:16px}
+.ringbtns button{padding:12px 28px;border:none;border-radius:30px;font-weight:800;font-size:16px}
+#pc-accept{background:#2b2;color:#fff;animation:pulse .8s infinite}
+#pc-decline{background:#c33;color:#fff}
+@keyframes pulse{50%{transform:scale(1.07)}}
+#phone-call{display:flex;flex-direction:column;gap:8px;height:100%}
+.callhead{display:flex;gap:12px;align-items:center;font-size:13px;flex-wrap:wrap}
+#call-who{flex:1;color:#aab}
+#call-mood{font-weight:700}
+.trust{width:140px;height:8px;background:#333;border-radius:4px;overflow:hidden}
+#call-trust{height:100%;width:0;transition:width .5s}
+#call-steps{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#778}
+#call-steps .ok{color:#5e5}
+#pc-log{flex:1;overflow-y:auto;background:#0a0c11;border-radius:8px;padding:10px;font-size:14px;line-height:1.5;min-height:0}
+.msg{margin-bottom:6px}
+.msg.me{color:#9cf}
+.msg.them{color:#fff}
+.msg.sys{color:#ffcf3f;font-size:12px}
+#pc-typing{visibility:hidden;font-size:12px;color:#889}
+#pc-interim{font-size:13px;color:#9f9;min-height:18px}
+.talkrow{display:flex;gap:8px}
+#pc-talk{padding:10px 14px;border:none;border-radius:8px;background:#264;color:#fff;font-weight:700;white-space:nowrap}
+#pc-talk.on{background:#d22;animation:pulse .6s infinite}
+#pc-text{flex:1;padding:10px;border-radius:8px;border:1px solid #334;background:#0a0c11;color:#fff;min-width:0}
+#pc-hangup{padding:10px 14px;border:none;border-radius:8px;background:#c33;color:#fff;font-weight:700}
+#rb-login{margin:auto;text-align:center;max-width:420px}
+#rb-login h2{color:#4af}
+#rb-login input{padding:10px;border-radius:8px;border:1px solid #445;background:#0a0c11;color:#fff;font-size:22px;letter-spacing:6px;width:220px;text-align:center;margin:12px 0}
+#rb-status{min-height:20px;font-size:13px;color:#ffcf3f}
+#rb-view{position:absolute;inset:0}
+.victim{position:absolute;inset:0;background:linear-gradient(135deg,#1e6aa8,#4bb0d8)}
+.victim.black::after{content:'🌑 Bildschirm des Anrufers ist schwarz (du siehst ihn trotzdem)';position:absolute;top:6px;right:8px;font-size:11px;background:#000c;padding:3px 8px;border-radius:6px}
+.vdesk{display:grid;grid-template-columns:repeat(auto-fill,90px);gap:10px;padding:14px}
+.file{text-align:center;padding:6px;border-radius:6px;cursor:pointer;user-select:none}
+.file:hover{background:#fff3}
+.fi{font-size:34px}
+.fn{font-size:11px;color:#fff;text-shadow:0 1px 2px #000;word-break:break-word}
+.vbar{position:absolute;left:0;right:0;bottom:0;height:34px;background:#123a;display:flex;align-items:center;gap:14px;padding:0 10px;font-size:13px}
+.vbar button{margin-left:auto;padding:4px 10px;border:none;border-radius:6px;background:#222;color:#fff}
+.bank{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(420px,90%);background:#fff;color:#222;border-radius:10px;padding:14px;box-shadow:0 10px 40px #0008;font-size:14px;line-height:1.7}
+.bank .bh{font-weight:800;color:#0a4;font-size:16px;border-bottom:2px solid #0a4;margin-bottom:8px}
+.bank .bal{font-size:18px}
+.bank input{width:110px;padding:4px;border:1px solid #aaa;border-radius:4px}
+.bank button{padding:5px 12px;border:none;border-radius:6px;background:#0a4;color:#fff;font-weight:700}
+.bank .login{text-align:center;padding:20px 0}
+#notes-area{flex:1;background:#fffbd0;color:#222;border-radius:8px;padding:12px;border:none;resize:none;font-family:Comic Sans MS,cursive;font-size:15px}
+#virus-layer{position:absolute;inset:0;pointer-events:none;z-index:5}
+.popup{position:absolute;width:260px;background:#eee;color:#111;border:2px solid #d00;border-radius:6px;box-shadow:0 8px 30px #000a;pointer-events:auto;animation:pulse .5s 2}
+.popup .pt{display:flex;justify-content:space-between;align-items:center;background:#d00;color:#fff;padding:4px 8px;font-weight:700;font-size:13px}
+.popup .pt button{background:#fff;color:#d00;border:none;border-radius:4px;padding:0 6px;font-weight:900}
+.popup .pb{padding:16px 10px;font-weight:800;text-align:center}
+
+/* Review */
+#review{display:none;position:fixed;inset:0;z-index:45;align-items:center;justify-content:center;background:rgba(40,0,0,.75)}
+#review.show{display:flex}
+.rv{width:min(560px,92vw);background:#1a1215;border:2px solid #a33;border-radius:18px;padding:26px;text-align:center}
+.rv h2{color:#ff5a5a;font-size:28px}
+#rv-boss{margin:18px 0;font-size:18px;line-height:1.5;font-style:italic;background:#0006;padding:16px;border-radius:12px}
+#rv-result{font-weight:700;margin-bottom:12px}
+#rv-wait{color:#aaa;font-size:13px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+
+<div id="menu">
+  <div class="mbox">
+    <h1>📞 CALLCENTER CHAOS</h1>
+    <div class="sub">Betreibe mit deinen Freunden ein absurdes Betrugs-Callcenter, quatsch KI-Anrufer per Mikrofon über den Tisch, erfüll die Quote und überleb den Chef.</div>
+    <label>Dein Name</label>
+    <input id="m-name" maxlength="16" placeholder="z.B. Kevin">
+    <button class="btn big" id="m-solo">Alleine spielen</button>
+    <label>Mit Freunden (Online-Koop, bis 4 Spieler)</label>
+    <div class="row2">
+      <button class="btn" id="m-host">Raum erstellen</button>
+      <input id="m-room" maxlength="5" placeholder="CODE">
+      <button class="btn" id="m-join">Beitreten</button>
+    </div>
+    <div id="m-netinfo"></div>
+    <label>Claude-API-Key (optional, bleibt nur in deinem Browser)</label>
+    <div class="row2">
+      <input id="m-apikey" type="password" placeholder="sk-ant-...">
+      <button class="btn" id="m-savekey">Speichern</button>
+    </div>
+    <div id="m-brain"></div>
+    <div class="help">
+      <kbd>WASD</kbd> laufen · <kbd>Shift</kbd> rennen · <kbd>E</kbd> benutzen / hinsetzen · <kbd>Klick</kbd> werfen<br>
+      Am PC: <kbd>V</kbd> gedrückt halten = ins Mikro sprechen (Chrome/Edge) oder tippen · <kbd>Esc</kbd> aufstehen<br>
+      Ziel: Anrufer überzeugen → RemoteBuddy installieren lassen → Code erfragen → verbinden → Bank-Login → überweisen.<br>
+      Vorsicht vor Scambaitern 🕵️ und Viren 🦠!
+    </div>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="hud-top">
+    <div class="t"><span id="h-day">Tag 1</span><span id="h-clock">09:00</span></div>
+    <div id="h-money">0 €</div>
+    <div class="bar"><div id="h-bar"></div></div>
+    <div id="room-code"></div>
+    <div id="brain-label"></div>
+  </div>
+  <div id="players"></div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="hints"><b>E</b> hinsetzen/benutzen · <b>Shift</b> rennen · <b>Klick</b> werfen</div>
+</div>
+<div id="banner"><div id="banner-text"></div><div id="banner-timer"></div></div>
+<div id="paused">Klicken zum Weiterspielen</div>
+<div id="toasts"></div>
+
+<div id="pc">
+  <div class="monitor">
+    <div class="pc-top"><span id="pc-title">Microhard Doors 95</span><button id="pc-standup">Aufstehen [Esc]</button></div>
+    <div class="pc-body">
+      <div class="pc-side">
+        <button data-app="phone" class="active">📞 Telefon<i id="phone-tab-dot"></i></button>
+        <button data-app="remote">🖥️ RemoteBuddy</button>
+        <button data-app="notes">📒 Notizen</button>
+      </div>
+      <div class="pc-main">
+        <div class="app show" id="app-phone">
+          <div id="phone-idle"><div class="big-emoji">☎️</div><p id="phone-idle-text">Warte auf eingehende Anrufe ...</p></div>
+          <div id="phone-ring">
+            <div class="big-emoji">📲</div>
+            <div class="ringnum" id="ring-number"></div>
+            <span id="ring-scam"></span>
+            <p id="ring-lure"></p>
+            <p id="ring-tip"></p>
+            <div class="ringbtns"><button id="pc-accept">Annehmen</button><button id="pc-decline">Ablehnen</button></div>
+          </div>
+          <div id="phone-call">
+            <div class="callhead"><span id="call-who"></span><span id="call-mood"></span><div class="trust"><div id="call-trust"></div></div></div>
+            <div id="call-steps"></div>
+            <div id="pc-log"></div>
+            <div id="pc-typing">✍️ Der Anrufer überlegt ...</div>
+            <div id="pc-interim"></div>
+            <div class="talkrow">
+              <button id="pc-talk">🎙️ Halten [V]</button>
+              <input id="pc-text" placeholder="... oder hier tippen und Enter drücken">
+              <button id="pc-hangup">Auflegen</button>
+            </div>
+          </div>
+        </div>
+        <div class="app" id="app-remote">
+          <div id="rb-login">
+            <h2>🖥️ RemoteBuddy</h2>
+            <p>Partner-ID des Anrufers eingeben:</p>
+            <input id="rb-id" maxlength="6" inputmode="numeric" placeholder="000000">
+            <br><button class="btn" id="rb-connect">Verbinden</button>
+            <p id="rb-status"></p>
+          </div>
+          <div id="rb-view" style="display:none"></div>
+        </div>
+        <div class="app" id="app-notes">
+          <textarea id="notes-area" placeholder="Notizen: Namen, Codes, Ausreden ..."></textarea>
+        </div>
+        <div id="virus-layer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="review">
+  <div class="rv">
+    <div class="big-emoji">😡</div>
+    <h2 id="rv-title">Leistungsbeurteilung</h2>
+    <div id="rv-stats"></div>
+    <div id="rv-boss"></div>
+    <div id="rv-result"></div>
+    <button class="btn big" id="rv-next">Weiter</button>
+    <div id="rv-wait">Warte auf den Host ...</div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
