@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Callcenter Chaos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -369,6 +369,39 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-
 #stun{position:fixed;inset:0;pointer-events:none;z-index:6;display:none;align-items:center;justify-content:center;font-family:var(--f-logo);font-size:42px;color:#ffd23a;-webkit-text-stroke:2px #111;background:radial-gradient(transparent 40%,rgba(255,240,120,.35))}
 #stun.show{display:flex}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .4s}
+/* ---------- Handy ---------- */
+#touch{position:fixed;inset:0;z-index:4;pointer-events:none}
+#t-look{position:absolute;right:0;top:0;bottom:0;width:58%;pointer-events:auto;touch-action:none}
+#t-stick{position:absolute;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:130px;height:130px;border-radius:50%;background:rgba(20,22,32,.35);border:2px solid rgba(255,255,255,.35);pointer-events:auto;touch-action:none}
+#t-knob{position:absolute;left:39px;top:39px;width:52px;height:52px;border-radius:50%;background:rgba(255,246,234,.85);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#t-btns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,auto);gap:10px;align-items:end;pointer-events:auto}
+.t-b{width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(20,22,32,.6);color:#fff;font-size:24px;font-weight:800;touch-action:none}
+.t-b.small{width:48px;height:48px;font-size:19px}
+.t-b.big{width:76px;height:76px;font-size:28px;background:rgba(255,210,58,.85);color:#111;grid-column:3;grid-row:1/3}
+.t-b.on{background:rgba(255,210,58,.85)}
+body.touch #hints,body.touch #brain-label{display:none}
+body.touch #prompt{top:calc(50% + 34px);font-size:16px}
+body.touch #stats-hud{right:auto;left:50%;transform:translateX(-50%);top:8px;bottom:auto;padding:5px 10px;gap:10px}
+body.touch #stats-hud .stats{font-size:10px}
+body.touch #inv{bottom:auto;top:62px}
+body.touch #room-code{top:auto;bottom:170px}
+body.touch #players{top:62px}
+body.touch input,body.touch textarea{font-size:16px}
+body.touch #toasts{top:64px}
+@media (max-height:520px){.portrait,.wave{display:none}#ph-name{padding:5px}.ph{gap:5px;padding:8px}#incoming{top:46%;padding:12px}#in-face{width:64px;height:64px}#in-lure{display:none}}
+@media (max-width:760px){
+  #icons{right:12px;grid-auto-flow:row;grid-template-columns:repeat(auto-fill,78px);grid-template-rows:none;overflow:auto;justify-content:center}
+  #taskbar{overflow-x:auto;gap:5px}
+  #taskbar .tb{flex:none}
+  #taskbar .stats{font-size:9px;flex:none}
+  #taskbar .clock{display:none}
+  .win{border-radius:0}
+  .rb{flex-direction:column}.rb-side{width:auto}
+  .zm{grid-template-columns:1fr;grid-template-rows:1fr 140px auto}
+  .dc-side{display:none}
+  #incoming{width:min(300px,92vw)}
+  .report{padding:16px}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <script type="importmap">
@@ -405,6 +438,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-
       <div class="help">
         <kbd>WASD</kbd> laufen · <kbd>Maus</kbd> umsehen · <kbd>Shift</kbd> rennen · <kbd>E</kbd> hinsetzen/benutzen · <kbd>Klick</kbd> werfen<br>
         Am PC: tippen und Enter (oder <kbd>V</kbd> halten = Mikro, außerhalb von Claude) · <kbd>Esc</kbd> aufstehen<br>
+        Handy: Joystick links laufen, rechts wischen zum Umsehen, Buttons rechts unten.<br>
         Anrufer überzeugen → RemoteBuddy installieren lassen → Code erfragen → verbinden → Bank-Login → überweisen.
       </div>
     </div>
@@ -516,6 +550,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-
   <div id="virus-layer"></div>
 
   <div id="taskbar">
+    <button class="tb" id="tb-desk" title="Desktop zeigen" style="background:#3a4260"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg></button>
     <button class="tb c-power" id="tb-power" title="Aufstehen (Esc)"><svg viewBox="0 0 24 24"><path d="M11 2h2v10h-2zm6.6 2.4l-1.4 1.4A7 7 0 1112 5v0a7 7 0 01-4.2 1.4L6.4 4.4a9 9 0 1011.2 0z"/></svg></button>
     <button class="tb c-script" data-open="script" title="Skript"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3v5h5"/></svg></button>
     <button class="tb c-phone" data-open="phone" title="Telefon"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 006.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 013 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><i class="dot" id="tb-ring" hidden></i></button>

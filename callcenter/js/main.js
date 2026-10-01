@@ -4,6 +4,7 @@ import { CONFIG, SCAMS } from '../config.js';
 import { buildOffice, makeAvatar, animateAvatar, textSprite, ROOM } from './office.js';
 import { Computer } from './computer.js';
 import { Apps } from './apps.js';
+import { isTouch, setupTouch } from './touch.js';
 import { Net, netAvailable, initNet } from './net.js';
 import { think, brainMode, BRAIN_LABEL, getApiKey, setApiKey, preloadBrain, initBrain, inClaude } from './brain.js';
 import * as voice from './voice.js';
@@ -67,7 +68,7 @@ class Game {
     ]);
     this.personas = (await (await fetch('personas.json')).json()).callers;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -108,6 +109,7 @@ class Game {
       if (this.computer.isOpen) this.computer.layout();
     });
     this.bindInput();
+    setupTouch(this);
     this.bindMenu();
     this.bindNet();
     this.clock3 = new THREE.Clock();
@@ -211,11 +213,12 @@ class Game {
     });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.renderer.domElement;
-      $('#paused').classList.toggle('show', !locked && !this.computer.isOpen && this.phase !== 'menu' && !$('#review').classList.contains('show'));
+      $('#paused').classList.toggle('show', !isTouch && !locked && !this.computer.isOpen && this.phase !== 'menu' && !$('#review').classList.contains('show'));
     });
   }
 
   lockPointer() {
+    if (isTouch) return;
     try { this.renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {}
   }
 
@@ -343,12 +346,13 @@ class Game {
       return;
     }
     const stunned = performance.now() < this.stunUntil;
-    const speed = stunned ? 0 : (this.crouch ? 1.4 : this.keys.ShiftLeft || this.keys.ShiftRight ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
-    const f = (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0) - (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0);
-    const s = (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) - (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0);
+    const speed = stunned ? 0 : (this.crouch ? 1.4 : this.keys.ShiftLeft || this.keys.ShiftRight || this.touchRun ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
+    const tm = this.touchMove || { x: 0, y: 0 };
+    const f = (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0) - (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0) - (Math.abs(tm.y) > 0.15 ? tm.y : 0);
+    const s = (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) - (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0) + (Math.abs(tm.x) > 0.15 ? tm.x : 0);
     let moving = 0;
     if (f || s) {
-      const len = Math.hypot(f, s);
+      const len = Math.max(1, Math.hypot(f, s));
       const dx = (-Math.sin(this.yaw) * f + Math.cos(this.yaw) * s) / len * speed * dt;
       const dz = (-Math.cos(this.yaw) * f - Math.sin(this.yaw) * s) / len * speed * dt;
       if (!this.collides(this.pos.x + dx, this.pos.z)) this.pos.x += dx;

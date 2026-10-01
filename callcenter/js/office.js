@@ -146,7 +146,7 @@ export function buildOffice(scene) {
   const sun = new THREE.DirectionalLight(0xffb070, 0.9);
   sun.position.set(-8, 12, 6);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(matchMedia('(pointer: coarse)').matches ? 1024 : 2048, matchMedia('(pointer: coarse)').matches ? 1024 : 2048);
   sun.shadow.bias = -0.0005;
   Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 10, bottom: -10 });
   scene.add(sun);

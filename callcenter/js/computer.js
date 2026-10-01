@@ -126,6 +126,7 @@ export class Computer {
     this.el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => this.openWin(b.dataset.open)));
     this.el.querySelectorAll('[data-deco]').forEach(b => b.addEventListener('click', () => this.deco(b.dataset.deco)));
     $('#tb-power').addEventListener('click', () => this.game.standUp());
+    $('#tb-desk').addEventListener('click', () => { this.el.querySelectorAll('.win').forEach(w => (w.hidden = true)); this.renderTaskbar(); });
     this.el.querySelectorAll('.win').forEach(w => this.bindWin(w));
     $('#in-accept').addEventListener('click', () => this.acceptCall());
     $('#in-decline').addEventListener('click', () => this.declineCall());
@@ -163,7 +164,7 @@ export class Computer {
     w.querySelector('[data-max]').addEventListener('click', (e) => { e.stopPropagation(); this.toggleMax(w); });
     const bar = w.querySelector('.tbar');
     bar.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button') || w.dataset.maxed) return;
+      if (e.target.closest('button') || w.dataset.maxed || this.mobile) return;
       const sx = e.clientX - w.offsetLeft, sy = e.clientY - w.offsetTop;
       const move = (ev) => {
         w.style.left = Math.max(-w.offsetWidth + 80, Math.min(innerWidth - 80, ev.clientX - sx)) + 'px';
@@ -198,7 +199,11 @@ export class Computer {
     return { win, body: win.querySelector('.wbody'), icon };
   }
 
+  get mobile() { return innerWidth < 760 || matchMedia('(pointer: coarse)').matches && innerHeight < 560; }
+  fit(w) { Object.assign(w.style, { left: '0px', top: '0px', width: innerWidth + 'px', height: (innerHeight - 46) + 'px' }); }
+
   layout() {
+    if (this.mobile) { this.el.querySelectorAll('.win').forEach(w => this.fit(w)); return; }
     const W = innerWidth, H = innerHeight - 46;
     const place = (id, l, t, w, h) => Object.assign($(id).style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px' });
     const pw = Math.min(330, W - 20);
@@ -212,7 +217,8 @@ export class Computer {
   openWin(app) {
     const w = this.el.querySelector(`.win[data-app="${app}"]`);
     if (!w) return;
-    if (w.dataset.size && !w.style.width) {
+    if (this.mobile) this.fit(w);
+    else if (w.dataset.size && !w.style.width) {
       const [ww, hh] = JSON.parse(w.dataset.size);
       const W = Math.min(ww, innerWidth - 20), H = Math.min(hh, innerHeight - 66);
       const n = this.el.querySelectorAll('.win:not([hidden])').length;
@@ -253,9 +259,8 @@ export class Computer {
     this.setWallpaper();
     this.el.classList.add('show');
     this.layout();
-    this.openWin('cam');
-    this.openWin('script');
-    this.openWin('phone');
+    if (this.mobile) { this.el.querySelectorAll('.win').forEach(w => (w.hidden = true)); this.openWin('phone'); }
+    else { this.openWin('cam'); this.openWin('script'); this.openWin('phone'); }
     const boot = $('#boot');
     boot.classList.remove('gone');
     setTimeout(() => boot.classList.add('gone'), 900);
@@ -314,7 +319,7 @@ export class Computer {
     this.log('sys', `Verbunden mit ${c.number}`);
     this.openWin('phone');
     this.render();
-    setTimeout(() => $('#ph-text').focus(), 50);
+    if (!this.mobile) setTimeout(() => $('#ph-text').focus(), 50);
     this.ask();
   }
 
@@ -615,7 +620,7 @@ export class Computer {
         <div class="vbar"><span>🪟 Start</span><span>${esc(first)}s PC</span>
         <button id="rb-black">${c.blackout ? 'Bildschirm wieder zeigen' : 'Bildschirm schwärzen'}</button></div>
       </div>`;
-    view.querySelectorAll('.file').forEach(el => el.addEventListener('dblclick', () => this.openFile(this.files[+el.dataset.i])));
+    view.querySelectorAll('.file').forEach(el => el.addEventListener(this.mobile ? 'click' : 'dblclick', () => this.openFile(this.files[+el.dataset.i])));
     $('#rb-black').addEventListener('click', () => this.toggleBlackout());
     const send = $('#bank-send');
     if (send) {
