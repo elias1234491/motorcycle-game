@@ -57,7 +57,7 @@ async function viaApiKey(input) {
 }
 
 const SAMPLE_FORMAT = {
-  caller: 'Antworte NUR mit einem JSON-Objekt der Form {"say": string, "trust": integer 0-100, "action": "none"|"install_remote"|"give_remote_code"|"login_bank"|"hang_up"}. Beispiel: {"say":"Hallo? Wer ist da?","trust":30,"action":"none"}',
+  caller: 'Antworte NUR mit einem JSON-Objekt der Form {"say": string, "trust": integer 0-100, "action": "none"|"install_remote"|"give_remote_code"|"login_bank"|"give_info"|"hang_up", "info_type": "none"|"giftcard"|"taxid"|"creditcard"}. Beispiel: {"say":"Hallo? Wer ist da?","trust":30,"action":"none","info_type":"none"}',
   boss: 'Antworte NUR mit einem JSON-Objekt der Form {"say": string}.',
 };
 
@@ -109,6 +109,10 @@ function offlineBrain(input) {
   const r = (a) => a[Math.floor(Math.random() * a.length)];
   if (!hist.length) return { say: r([`Hallo? Hier ist ${p.name}. Ich ruf an wegen ... na, Sie wissen schon!`, `Ja, guten Tag, ${p.name} hier. Ist da der Support?`]), trust, action: 'none' };
   if (trust < 15) return { say: r(['Nee, das ist mir zu komisch. Tschüss!', 'Ich ruf jetzt meinen Enkel an. Auf Wiederhören!']), trust, action: 'hang_up' };
+  const d = input.data || {};
+  if (trust >= 60 && /gutschein|karte kaufen|geschenkkarte|gift/.test(lastUser)) return { say: `Na gut, ich hab die Gutscheine gekauft. Der Code ist ${d.giftcard}.`, trust, action: 'give_info', info_type: 'giftcard' };
+  if (trust >= 60 && /steuer|steuer-id|identifikation/.test(lastUser)) return { say: `Meine Steuer-ID? Moment ... ${d.taxid}.`, trust, action: 'give_info', info_type: 'taxid' };
+  if (trust >= 60 && /kreditkarte|kartennummer/.test(lastUser)) return { say: `Die Kreditkarte ... ${d.creditcard}.`, trust, action: 'give_info', info_type: 'creditcard' };
   if (state.code && /bank|einlog|anmeld|konto/.test(lastUser) && trust >= 65) return { say: 'Na gut, ich logge mich ein ... so, jetzt sehe ich mein Konto.', trust, action: 'login_bank' };
   if (state.installed && !state.code && /code|nummer|zahl|id/.test(lastUser) && trust >= 55) return { say: `Da steht ... ${input.remoteCode.split('').join(', ')}.`, trust, action: 'give_remote_code' };
   if (!state.installed && /remote|programm|install|herunterlad|download|buddy/.test(lastUser) && trust >= 50) return { say: 'Also gut, ich klicke auf Installieren ... RemoteBuddy, so heißt das? Ist drauf.', trust, action: 'install_remote' };

@@ -29,4 +29,16 @@ export const SCAMS = [
   { id: 'luft', day: 5, icon: '🌬️', name: 'Premium-Luft-Abo',
     lure: 'Der Anrufer hat einen Flyer gefunden: "Ihre Luft ist veraltet! Upgraden Sie jetzt auf Premium-Luft 5G - Abo-Hotline anrufen!"',
     tip: 'Normale Luft läuft dieses Jahr aus. Verkaufe das Premium-Luft-Abo.' },
+  { id: 'finanzamt', day: 6, icon: '🏛️', name: 'Finanzamt-Rückerstattung',
+    lure: 'Der Anrufer hat einen Brief vom "Bundesamt für Rückerstattungen und Sonstiges" bekommen: Er bekommt 3.412 Euro zurück, muss aber vorher seine Steuer-ID bestätigen.',
+    tip: 'Du bist Sachbearbeiter beim Amt. Frag nach der Steuer-ID und tipp sie in "Identität" ein.' },
+  { id: 'romanze', day: 7, icon: '💘', name: 'Liebes-Hotline',
+    lure: 'Der Anrufer hat online "Prinz Valentino, Ölbohrinsel-Kapitän" kennengelernt, der dringend Gutscheinkarten für ein Flugticket braucht. Die Nummer ist angeblich Valentinos Assistent.',
+    tip: 'Du bist Valentinos Assistent. Überrede zu Gutscheinkarten und lös den Code in "Gutscheine" ein.' },
+  { id: 'wunder', day: 8, icon: '🧪', name: 'Wundermittel "Jungbrunnen 3000"',
+    lure: 'Der Anrufer hat eine Fernsehwerbung gesehen: "Jungbrunnen 3000 - macht 40 Jahre jünger! Nur heute mit Kreditkarte bestellen!"',
+    tip: 'Nimm die Bestellung auf. Lass dir die Kreditkartennummer geben und gib sie in "Kreditkarte" ein.' },
 ];
+
+// Vorzeitig freischalten im Scamazon-Shop (Preis vom persönlichen Konto)
+export const SCAM_PRICES = { gewinnspiel: 300, krypto: 600, prinz: 900, luft: 1200, finanzamt: 1500, romanze: 1800, wunder: 2200 };

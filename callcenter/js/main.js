@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CONFIG, SCAMS } from '../config.js';
 import { buildOffice, makeAvatar, animateAvatar, textSprite, ROOM } from './office.js';
 import { Computer } from './computer.js';
+import { Apps } from './apps.js';
 import { Net, netAvailable, initNet } from './net.js';
 import { think, brainMode, BRAIN_LABEL, getApiKey, setApiKey, preloadBrain, initBrain, inClaude } from './brain.js';
 import * as voice from './voice.js';
@@ -34,6 +35,14 @@ class Game {
     this.chaos = null;
     this.personas = [];
     this.lastPersona = null;
+    this.unlockedScams = new Set();
+    this.inventory = [];
+    this.equipped = -1;
+    this.crouch = false;
+    this.stunUntil = 0;
+    this.quotes = [];
+    this.richCalls = 0;
+    this.itemCd = 0;
   }
 
   get quota() { return Math.round(CONFIG.BASE_QUOTA * Math.pow(CONFIG.QUOTA_GROWTH, this.day - 1) / 50) * 50; }
@@ -73,6 +82,7 @@ class Game {
     this.raycaster = new THREE.Raycaster();
     this.camRay = new THREE.Raycaster();
     this.computer = new Computer(this);
+    this.apps = new Apps(this, this.computer);
 
     this.boss = makeAvatar(0x2b2b33, 'Chef Brenner', { tie: true, skin: 0xe39a6a, mustache: true });
     this.boss.position.set(9, 0, 2);
@@ -180,6 +190,8 @@ class Game {
         return;
       }
       if (e.code === 'KeyE') this.interact();
+      if (e.code === 'KeyQ') this.cycleItem();
+      if (e.code === 'KeyC') { this.crouch = !this.crouch; }
     });
     addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
@@ -195,6 +207,7 @@ class Game {
       if (e.target !== this.renderer.domElement) return;
       if (document.pointerLockElement !== this.renderer.domElement) { this.lockPointer(); return; }
       if (this.held) this.throwProp();
+      else if (this.equipped >= 0) this.useItem();
     });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.renderer.domElement;
@@ -329,7 +342,8 @@ class Game {
       animateAvatar(av, dt, 0, true);
       return;
     }
-    const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
+    const stunned = performance.now() < this.stunUntil;
+    const speed = stunned ? 0 : (this.crouch ? 1.4 : this.keys.ShiftLeft || this.keys.ShiftRight ? 5.5 : 3.2) * (performance.now() < this.coffeeUntil ? 1.6 : 1);
     const f = (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0) - (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0);
     const s = (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) - (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0);
     let moving = 0;
@@ -345,11 +359,13 @@ class Game {
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       av.rotation.y += diff * Math.min(1, dt * 12);
     }
-    av.position.set(this.pos.x, 0, this.pos.z);
+    av.position.set(this.pos.x, this.crouch ? -0.45 : 0, this.pos.z);
     animateAvatar(av, dt, moving, false);
+    this.applyStunPose(av, stunned);
+    $('#stun').classList.toggle('show', stunned);
 
     // Kamera hinter und über der Figur, stoppt vor Wänden
-    const target = new THREE.Vector3(this.pos.x, 1.75, this.pos.z);
+    const target = new THREE.Vector3(this.pos.x, this.crouch || stunned ? 1.0 : 1.75, this.pos.z);
     const back = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), -Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch));
     let dist = 3.1;
     this.camRay.set(target, back); this.camRay.far = dist;
@@ -360,6 +376,7 @@ class Game {
     const camPos = target.clone().addScaledVector(back, dist).add(right);
     camPos.y = Math.min(ROOM.h - 0.15, Math.max(0.4, camPos.y));
     this.camera.position.lerp(camPos, Math.min(1, dt * 14));
+    if (this.shake > 0) { this.camera.position.add(new THREE.Vector3((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake, 0)); this.shake = Math.max(0, this.shake - dt); }
     this.camera.lookAt(target.x - Math.sin(this.yaw) * 2 + right.x, 1.45 + Math.sin(this.pitch) * 2, target.z - Math.cos(this.yaw) * 2 + right.z);
   }
 
@@ -372,7 +389,9 @@ class Game {
   }
 
   updateBoss(dt) {
-    if (this.phase !== 'work') { animateAvatar(this.boss, dt, 0, false); return; }
+    const ko = performance.now() < (this.bossStunUntil || 0);
+    this.applyStunPose(this.boss, ko);
+    if (this.phase !== 'work' || ko) { animateAvatar(this.boss, dt, 0, false); return; }
     const [tx, tz] = this.bossPath[this.bossTarget];
     const b = this.boss.position;
     const dx = tx - b.x, dz = tz - b.z, d = Math.hypot(dx, dz);
@@ -401,8 +420,9 @@ class Game {
     const list = pool.length ? pool : this.personas;
     const p = list[Math.floor(Math.random() * list.length)];
     this.lastPersona = p.id;
-    p.voice = { ...p.voice, index: this.personas.indexOf(p) };
-    return p;
+    const out = { ...p, voice: { ...p.voice, index: this.personas.indexOf(p) } };
+    if (this.richCalls > 0) { this.richCalls--; out.money = p.money * 4; }
+    return out;
   }
 
   updateCalls() {
@@ -417,7 +437,7 @@ class Game {
     }
     if (this.phase !== 'work' || !this.seated || pc.call || this.chaos?.kind === 'power') return;
     if (now < this.nextRingAt) return;
-    const scams = SCAMS.filter(s => s.day <= this.day);
+    const scams = SCAMS.filter(s => s.day <= this.day || this.unlockedScams.has(s.id));
     pc.ring({
       persona: this.pickCaller(),
       scam: scams[Math.floor(Math.random() * scams.length)],
@@ -443,6 +463,7 @@ class Game {
     this.personal += amount;
     this.earned += amount;
     this.board[this.me.name] = (this.board[this.me.name] || 0) + amount;
+    this.apps.log(msg.replace(/^[^\w]*/, '').slice(0, 60), amount);
     if (this.net.isHost) this.broadcastState();
     else this.net.send('earn', { amount, name: this.me.name });
   }
@@ -470,13 +491,15 @@ class Game {
     this.phase = 'work';
     this.chaosPlan = day >= 2 ? [{ at: CONFIG.DAY_SECONDS * (0.3 + Math.random() * 0.4), kind: Math.random() < 0.5 || day < 3 ? 'raid' : 'power' }] : [];
     if (day >= 4) this.chaosPlan.push({ at: CONFIG.DAY_SECONDS * 0.85, kind: 'raid' });
+    if (day >= 3) this.chaosPlan.push({ at: CONFIG.DAY_SECONDS * (0.15 + Math.random() * 0.1), kind: 'airstrike' });
     this.onDayStart();
     this.broadcastState();
   }
 
   onDayStart() {
     $('#review').classList.remove('show');
-    if (this.day === 1) this.personal = 0;
+    if (this.day === 1) { this.personal = 0; this.unlockedScams.clear(); this.inventory = []; this.equipped = -1; this.renderInv(); this.apps.resetRun(); }
+    this.apps.refreshIcons();
     this.office.setFired(false);
     const newScam = SCAMS.find(s => s.day === this.day);
     this.toast(`☀️ Tag ${this.day} beginnt! Quote: ${euro(this.quota)}`);
@@ -551,6 +574,7 @@ class Game {
 
   // ---------------- Chaos-Events ----------------
   startChaos(kind) {
+    if (kind === 'airstrike') { this.airstrike('self', false, true); return; }
     if (kind === 'raid') {
       this.chaos = { kind, until: performance.now() + 25000, done: false };
       voice.buzz();
@@ -614,7 +638,7 @@ class Game {
       this.toast(`🚪 ${r.name} hat das Büro verlassen`);
       this.remotes.delete(id);
     });
-    n.on('peers', () => this.renderPlayers());
+    n.on('peers', () => { this.renderPlayers(); this.apps.renderPeople(); });
     n.on('pos', (m) => {
       const r = this.remotes.get(m.from);
       if (r) { r.target.set(m.x, 0, m.z); r.ry = m.ry; }
@@ -658,6 +682,12 @@ class Game {
     n.on('review', (m) => { if (!n.isHost) this.showReview(m.stats, m.text); });
     n.on('chaos', (m) => { if (!n.isHost) this.startChaos(m.kind); });
     n.on('fuse', () => this.endPower(true));
+    n.on('hit', (m) => this.onHit(m));
+    n.on('fx', (m) => this.itemFx(m.kind, new THREE.Vector3(...m.from), new THREE.Vector3(...m.to)));
+    n.on('airstrike', (m) => this.airstrike(m.kind, false, false, m.by));
+    n.on('cookies', () => this.office.cookieRain());
+    n.on('paint', (m) => { if (typeof m.url === 'string' && m.url.startsWith('data:image/')) { const img = new Image(); img.onload = () => this.office.setPinboard(img); img.src = m.url; } });
+    n.on('quote', (m) => this.addQuote(String(m.name || '?').slice(0, 16), String(m.text || '').slice(0, 120), false));
   }
 
   renderPlayers() {
@@ -687,7 +717,144 @@ class Game {
       r.av.position.y = 0;
       r.av.rotation.y = r.ry;
       animateAvatar(r.av, dt, r.last.distanceTo(r.av.position) / Math.max(dt, 0.001), false);
+      this.applyStunPose(r.av, performance.now() < (r.stunUntil || 0));
     }
+  }
+
+  // ---------------- Gegenstände & Waffen (Scamazon "Physische Waren") ----------------
+  giveItem(id) {
+    this.inventory.push(id);
+    this.equipped = this.inventory.length - 1;
+    this.renderInv();
+  }
+  cycleItem() {
+    if (!this.inventory.length) return;
+    this.equipped = this.equipped + 1 >= this.inventory.length ? -1 : this.equipped + 1;
+    this.renderInv();
+  }
+  renderInv() {
+    const E = { spray: '🧴', baton: '🏏', taser: '⚡', shotgun: '🎉', sniper: '🎯' };
+    $('#inv').innerHTML = this.inventory.length ? ['✋', ...this.inventory.map(i => E[i] || '?')].map((e, i) => `<div class="inv-s ${i - 1 === this.equipped ? 'on' : ''}"><small>${i ? i : 'Q'}</small>${e}</div>`).join('') : '';
+    // Gegenstand in der Hand der Figur
+    if (!this.player) return;
+    const hand = this.player.userData.arms[1];
+    if (this.handMesh) hand.remove(this.handMesh);
+    this.handMesh = null;
+    const id = this.inventory[this.equipped];
+    if (!id) return;
+    const M = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 });
+    const geo = { spray: [new THREE.CylinderGeometry(0.05, 0.05, 0.22, 10), 0x7ccf3a], baton: [new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), 0x222222], taser: [new THREE.BoxGeometry(0.08, 0.16, 0.06), 0xffd23a], shotgun: [new THREE.BoxGeometry(0.07, 0.08, 0.75), 0xff7a1a], sniper: [new THREE.BoxGeometry(0.06, 0.08, 1.1), 0x2d3550] }[id];
+    this.handMesh = new THREE.Mesh(geo[0], M(geo[1]));
+    this.handMesh.position.set(0, -0.62, ['shotgun', 'sniper'].includes(id) ? -0.3 : -0.05);
+    if (id === 'baton') this.handMesh.rotation.x = Math.PI / 2.4;
+    hand.add(this.handMesh);
+  }
+  useItem() {
+    const id = this.inventory[this.equipped];
+    if (!id || performance.now() < this.itemCd || performance.now() < this.stunUntil) return;
+    const R = { spray: [3, 0.8, 3000, 1200], baton: [1.8, 0.7, 2500, 900], taser: [5, 0.92, 4000, 1500], shotgun: [7, 0.75, 3500, 1800], sniper: [40, 0.995, 5000, 3000] }[id];
+    const [range, cone, dur, cd] = R;
+    this.itemCd = performance.now() + cd;
+    const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir); dir.y = 0; dir.normalize();
+    const origin = new THREE.Vector3(this.pos.x, 1.3, this.pos.z);
+    // Ziel suchen: Kollegen und Chef
+    const targets = [...[...this.remotes].map(([pid, r]) => ({ id: pid, pos: r.av.position })), { id: 'boss', pos: this.boss.position }];
+    let best = null;
+    for (const t of targets) {
+      const v = new THREE.Vector3(t.pos.x - origin.x, 0, t.pos.z - origin.z);
+      const d = v.length(); if (d > range || d < 0.01) continue;
+      if (v.normalize().dot(dir) < cone) continue;
+      if (!best || d < best.d) best = { ...t, d };
+    }
+    const to = best ? new THREE.Vector3(best.pos.x, 1.3, best.pos.z) : origin.clone().addScaledVector(dir, Math.min(range, 8));
+    this.itemFx(id, origin, to);
+    this.net.send('fx', { kind: id, from: origin.toArray(), to: to.toArray() });
+    voice.beep({ spray: 300, baton: 140, taser: 1200, shotgun: 90, sniper: 60 }[id], 0.25, id === 'taser' ? 'square' : 'sawtooth', 0.12);
+    if (!best) return;
+    const m = { target: best.id, kind: id, dur, by: this.me.name, dir: dir.toArray() };
+    this.onHit(m);
+    this.net.send('hit', m);
+  }
+  onHit(m) {
+    const until = performance.now() + (Number(m.dur) || 3000);
+    if (m.target === 'boss') {
+      this.bossStunUntil = until;
+      this.showBubble(this.boss, '😵 ABMAHNUNG FÜR ' + String(m.by || '?').toUpperCase() + '!', 3500);
+      return;
+    }
+    if (m.target === this.net.id) {
+      if (this.seated) this.standUp();
+      this.stunUntil = until;
+      if (m.kind === 'shotgun' && Array.isArray(m.dir)) { for (let i = 0; i < 12; i++) { const nx = this.pos.x + m.dir[0] * 0.15, nz = this.pos.z + m.dir[2] * 0.15; if (!this.collides(nx, nz)) this.pos.set(nx, 0, nz); } }
+      this.toast(`⭐ ${m.by} hat dich erwischt!`);
+      return;
+    }
+    const r = this.remotes.get(m.target);
+    if (r) r.stunUntil = until;
+  }
+  applyStunPose(av, on) {
+    av.rotation.x = on ? -Math.PI / 2 : 0;
+    if (on) { av.position.y = 0.28; av.userData.wasStun = true; }
+    else if (av.userData.wasStun) { av.userData.wasStun = false; if (av === this.boss) av.position.y = 0; }
+    let stars = av.userData.stars;
+    if (on && !stars) {
+      stars = av.userData.stars = textSprite('⭐ 💫 ⭐', '#ffd23a', 'rgba(0,0,0,0)', 0.7);
+      av.add(stars);
+    }
+    if (stars) { stars.visible = on; stars.position.set(0, 1.9, 0.6); stars.material.rotation = Math.sin(performance.now() / 200) * 0.3; }
+  }
+  // Effekte der Waffen sichtbar machen (Spray-Wolke, Taser-Blitz, Konfetti, Leuchtspur)
+  itemFx(kind, from, to) {
+    const col = { spray: 0x8bd450, baton: 0xffffff, taser: 0xfff060, shotgun: 0xff4fd8, sniper: 0xffb040 }[kind] || 0xffffff;
+    const n = kind === 'shotgun' ? 40 : kind === 'spray' ? 26 : 10;
+    for (let i = 0; i < n; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ color: kind === 'shotgun' ? new THREE.Color().setHSL(Math.random(), 0.9, 0.6) : col, transparent: true, depthWrite: false }));
+      const k = Math.random();
+      sp.position.lerpVectors(from, to, kind === 'spray' ? k * 0.9 : k).add(new THREE.Vector3((Math.random() - 0.5) * (kind === 'spray' ? 0.6 * k : 0.15), (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * (kind === 'spray' ? 0.6 * k : 0.15)));
+      const s0 = kind === 'spray' ? 0.25 + k * 0.4 : 0.08;
+      sp.scale.set(s0, s0, 1);
+      this.scene.add(sp);
+      setTimeout(() => this.scene.remove(sp), 350 + Math.random() * 500);
+    }
+  }
+  // ---------------- Luftschlag ----------------
+  airstrike(kind, origin, chaos = false, by = null) {
+    if (origin) this.net.send('airstrike', { kind, by: this.me.name });
+    voice.buzz();
+    if (kind === 'rival') {
+      this.toast(`🚀 ${by || this.me.name} hat einen Luftschlag auf die Konkurrenz bestellt! Deren reiche Kunden rufen jetzt bei euch an.`);
+      this.richCalls += 4;
+      $('#flash').style.opacity = 0.6; setTimeout(() => ($('#flash').style.opacity = 0), 250);
+      return;
+    }
+    this.banner(chaos ? '🚨 LUFTANGRIFF! Duck dich unter einen Tisch (C)! 🚨' : `💥 ${by || this.me.name} hat einen Luftschlag auf EUCH bestellt! Duck dich unter einen Tisch (C)! 💥`);
+    this.strikeAt = performance.now() + 6000;
+    let k = 0;
+    const siren = setInterval(() => { voice.beep(k++ % 2 ? 620 : 880, 0.4, 'square', 0.05); if (performance.now() > this.strikeAt) clearInterval(siren); }, 450);
+    setTimeout(() => {
+      for (let i = 0; i < 14; i++) setTimeout(() => {
+        this.office.explosion(-11 + Math.random() * 14, -7 + Math.random() * 14);
+        voice.beep(60 + Math.random() * 40, 0.5, 'sawtooth', 0.15);
+        this.shake = 0.35;
+      }, i * 200);
+      $('#flash').style.opacity = 0.8; setTimeout(() => ($('#flash').style.opacity = 0), 300);
+      const safe = this.crouch && this.office.desks.some(d => Math.hypot(d.x - this.pos.x, d.z - this.pos.z) < 1.3);
+      if (!safe && !this.seated) { this.stunUntil = performance.now() + 6000; this.toast('💥 Erwischt! Nächstes Mal unter den Tisch!'); }
+      else if (this.seated) { this.standUp(); this.stunUntil = performance.now() + 6000; this.toast('💥 Wer am PC sitzen bleibt, fliegt mit!'); }
+      else this.toast('😮‍💨 Unter dem Tisch überlebt!');
+      this.bossStunUntil = performance.now() + 6000;
+      this.banner('');
+    }, 6000);
+  }
+  cookieRain(origin) {
+    this.office.cookieRain();
+    if (origin) { this.net.send('cookies'); this.toast('🍪 KEKS-METEORSCHAUER!'); }
+  }
+  addQuote(name, text, broadcast = true) {
+    this.quotes.push([name, text]);
+    if (this.quotes.length > 20) this.quotes.shift();
+    this.office.setQuotes(this.quotes);
+    if (broadcast) this.net.send('quote', { name, text });
   }
 
   // ---------------- HUD ----------------
@@ -711,14 +878,14 @@ class Game {
     if (this.computer.isOpen) this.computer.setStats(stats);
     const t = !this.seated && this.phase !== 'menu' ? this.lookTarget() : null;
     $('#prompt').textContent = this.held ? '[E] fallen lassen · [Klick] werfen' : this.promptFor(t);
+    if (this.wbT % 60 === 0 && this.computer.isOpen) { if (!this.apps.win.shop.win.hidden) this.apps.renderShop(); this.apps.renderLedger(); }
     if ((this.wbT = (this.wbT || 0) + 1) % 30 === 0) this.office.updateWhiteboard({ day: this.day, clock: this.clock, earned: this.earned, quota: this.quota, board: this.rankedBoard() });
   }
 
   // Webcam-Bild der eigenen Figur ins Kamera-Fenster zeichnen (wie im Original)
-  renderWebcam() {
-    const d = this.seated, cv = this.computer.camCanvas;
-    this.webcam.position.copy(d.webcam);
-    this.webcam.lookAt(d.chairPos.x, 1.45, d.chairPos.z);
+  renderWebcam(cv = this.computer.camCanvas, from = this.seated.webcam, look = new THREE.Vector3(this.seated.chairPos.x, 1.45, this.seated.chairPos.z)) {
+    this.webcam.position.copy(from);
+    this.webcam.lookAt(look);
     const pr = this.renderer.getPixelRatio();
     const w = cv.width / pr, h = cv.height / pr;
     this.renderer.setScissorTest(true);
@@ -756,7 +923,15 @@ class Game {
       this.camera.lookAt(-5.5, 1.1, -0.5);
     }
     if (this.seated && this.computer.isOpen) {
-      if (this.computer.camVisible && (this.camFrame = (this.camFrame || 0) + 1) % 2 === 0) this.renderWebcam();
+      this.camFrame = (this.camFrame || 0) + 1;
+      if ((this.computer.camVisible || this.recording) && this.camFrame % 2 === 0) this.renderWebcam();
+      const tiles = this.camFrame % 6 === 3 ? this.apps.zoomyCanvases() : null;
+      if (tiles) for (const [id, cv] of tiles) {
+        if (id === 'me') { this.renderWebcam(cv); continue; }
+        const r = this.remotes.get(id); if (!r) continue;
+        const a = r.av.position, ry = r.av.rotation.y;
+        this.renderWebcam(cv, new THREE.Vector3(a.x - Math.sin(ry) * 1.1, 1.55 + a.y, a.z - Math.cos(ry) * 1.1), new THREE.Vector3(a.x, 1.45 + a.y, a.z));
+      }
       return; // der Desktop deckt die 3D-Ansicht komplett ab
     }
     this.renderer.render(this.scene, this.camera);

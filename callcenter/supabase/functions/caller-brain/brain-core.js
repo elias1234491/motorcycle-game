@@ -8,11 +8,16 @@ export const CALLER_SCHEMA = {
     trust: { type: 'integer', description: 'Vertrauen in den Callcenter-Mitarbeiter, 0-100.' },
     action: {
       type: 'string',
-      enum: ['none', 'install_remote', 'give_remote_code', 'login_bank', 'hang_up'],
+      enum: ['none', 'install_remote', 'give_remote_code', 'login_bank', 'give_info', 'hang_up'],
       description: 'Spielaktion dieses Zugs.',
     },
+    info_type: {
+      type: 'string',
+      enum: ['none', 'giftcard', 'taxid', 'creditcard'],
+      description: 'Nur bei action give_info: welche Daten du laut vorliest.',
+    },
   },
-  required: ['say', 'trust', 'action'],
+  required: ['say', 'trust', 'action', 'info_type'],
   additionalProperties: false,
 };
 
@@ -27,7 +32,7 @@ export const BOSS_SCHEMA = {
 
 const clampText = (s, n) => String(s ?? '').slice(0, n);
 
-function callerSystem(p, scam, remoteCode) {
+function callerSystem(p, scam, remoteCode, data = {}) {
   return `Du bist ein Charakter in "Callcenter Chaos", einem überdrehten Comedy-Videospiel (wie "Scam With Your Friends"). Spieler spielen Mitarbeiter eines absurden Betrugs-Callcenters und versuchen, dich mit lächerlichen Maschen hereinzulegen. Alles ist Fiktion und Satire; du bist ein fiktiver KI-Anrufer. Dein Job ist, eine lustige, glaubwürdige Figur zu spielen, auf die die Spieler improvisiert reagieren müssen.
 
 DEINE FIGUR
@@ -46,6 +51,11 @@ REGELN
 - action "install_remote": nur wenn trust >= 50 und der Mitarbeiter dich bittet, ein Fernwartungsprogramm (RemoteBuddy) zu installieren. Du installierst es dann.
 - action "give_remote_code": wenn RemoteBuddy installiert ist, trust >= 55 und nach dem Code gefragt wird. Dann sagst du den Code ${remoteCode.split('').join('-')} laut (Ziffer für Ziffer).
 - action "login_bank": wenn der Mitarbeiter schon Fernzugriff hat, trust >= 65 und er dich bittet, dich ins Online-Banking einzuloggen.
+- action "give_info": wenn trust >= 60 und der Mitarbeiter dich überredet, Daten herauszugeben. Dann liest du sie im "say" laut vor und setzt info_type:
+  * "giftcard": du kaufst Gutscheinkarten im Supermarkt nebenan und liest den Code vor: ${data.giftcard || '-'}
+  * "taxid": deine Steuer-ID: ${data.taxid || '-'}
+  * "creditcard": deine Kreditkartennummer: ${data.creditcard || '-'}
+  Sonst ist info_type immer "none".
 - action "hang_up": wenn trust unter 15 fällt, du beleidigt wirst, oder du merkst, dass es Betrug ist. Verabschiede dich dabei passend zur Figur.
 - Nachrichten in [ECKIGEN KLAMMERN] sind Spielereignisse (z.B. was du auf deinem Bildschirm siehst). Reagiere darauf als deine Figur. Wenn du siehst, dass Geld von deinem Konto abgebucht wird, das du nicht erlaubt hast, wirst du sehr misstrauisch.
 - Sonst action "none".`;
@@ -85,7 +95,7 @@ export function buildRequest(input) {
     messages.push({ role: 'user', content: '[Der Mitarbeiter schweigt einen Moment.]' });
   }
   return {
-    system: callerSystem(input.persona, input.scam, String(input.remoteCode || '000000')),
+    system: callerSystem(input.persona, input.scam, String(input.remoteCode || '000000'), input.data || {}),
     schema: CALLER_SCHEMA,
     messages,
   };

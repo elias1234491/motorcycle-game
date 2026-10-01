@@ -12,6 +12,22 @@ const VIRUS_FILES = ['GRATIS_RAM_DOWNLOAD.exe', 'oma_rezepte.pdf.exe', 'Bildschi
 const NORMAL_FILES = [['📁', 'Urlaubsfotos Mallorca'], ['📄', 'Einkaufsliste.txt'], ['🗑️', 'Papierkorb'], ['📁', 'Steuer 2019 (nicht öffnen)'], ['🎵', 'Schlager_Hits.mp3'], ['📄', 'Passwörter (geheim).txt']];
 const BAITER_FILES = [['🔴', 'OBS Studio - REC'], ['📄', 'scambait_ideen.txt'], ['💻', 'VirtualBox']];
 const POPUPS = ['DEIN PC HAT 9.999 VIREN 😈', 'Gratis iPhone 47 gewonnen!!!', 'Festplatte wird formatiert ... 3%', 'Heiße Singles in deinem Callcenter', 'Windoof-Lizenz abgelaufen!', 'Bist du ein Roboter? Beweise es!'];
+export const INFO_LABEL = { giftcard: 'Gutschein-Code', taxid: 'Steuer-ID', creditcard: 'Kreditkartennummer' };
+const INFO_APP = { giftcard: 'Gutscheine', taxid: 'Identität', creditcard: 'Kreditkarte' };
+const rnd = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('');
+const LET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const rl = (n) => Array.from({ length: n }, () => LET[Math.floor(Math.random() * LET.length)]).join('');
+// Fiktive Daten des Anrufers, die er im Gespräch vorlesen kann
+function makeCallerData() {
+  const t = rnd(11), c = '4' + rnd(15);
+  return {
+    giftcard: `${rl(4)}-${rnd(4)}-${rl(4)}`,
+    taxid: `${t.slice(0, 2)} ${t.slice(2, 5)} ${t.slice(5, 8)} ${t.slice(8)}`,
+    creditcard: c.match(/.{4}/g).join(' '),
+  };
+}
+export const normInfo = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
 const MOODS = [[70, 'VERTRAUT', '#36d46a'], [45, 'INTERESSIERT', '#9be15d'], [25, 'MISSTRAUISCH', '#ffb02e'], [0, 'WÜTEND', '#ff4d4d']];
 
 // ---------- Hintergrundbilder (Landschaften wie im Original) ----------
@@ -110,23 +126,7 @@ export class Computer {
     this.el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => this.openWin(b.dataset.open)));
     this.el.querySelectorAll('[data-deco]').forEach(b => b.addEventListener('click', () => this.deco(b.dataset.deco)));
     $('#tb-power').addEventListener('click', () => this.game.standUp());
-    this.el.querySelectorAll('.win').forEach(w => {
-      w.addEventListener('mousedown', () => this.focus(w));
-      w.querySelector('[data-close]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
-      w.querySelector('[data-min]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
-      w.querySelector('[data-max]').addEventListener('click', (e) => { e.stopPropagation(); this.toggleMax(w); });
-      const bar = w.querySelector('.tbar');
-      bar.addEventListener('mousedown', (e) => {
-        if (e.target.closest('button') || w.dataset.maxed) return;
-        const sx = e.clientX - w.offsetLeft, sy = e.clientY - w.offsetTop;
-        const move = (ev) => {
-          w.style.left = Math.max(-w.offsetWidth + 80, Math.min(innerWidth - 80, ev.clientX - sx)) + 'px';
-          w.style.top = Math.max(0, Math.min(innerHeight - 80, ev.clientY - sy)) + 'px';
-        };
-        const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
-        addEventListener('mousemove', move); addEventListener('mouseup', up);
-      });
-    });
+    this.el.querySelectorAll('.win').forEach(w => this.bindWin(w));
     $('#in-accept').addEventListener('click', () => this.acceptCall());
     $('#in-decline').addEventListener('click', () => this.declineCall());
     $('#ph-hangup').addEventListener('click', () => this.endCall('Du hast aufgelegt.'));
@@ -156,6 +156,48 @@ export class Computer {
     $('#notes-area').addEventListener('keydown', (e) => e.stopPropagation());
   }
 
+  bindWin(w) {
+    w.addEventListener('mousedown', () => this.focus(w));
+    w.querySelector('[data-close]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
+    w.querySelector('[data-min]').addEventListener('click', (e) => { e.stopPropagation(); w.hidden = true; this.renderTaskbar(); });
+    w.querySelector('[data-max]').addEventListener('click', (e) => { e.stopPropagation(); this.toggleMax(w); });
+    const bar = w.querySelector('.tbar');
+    bar.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button') || w.dataset.maxed) return;
+      const sx = e.clientX - w.offsetLeft, sy = e.clientY - w.offsetTop;
+      const move = (ev) => {
+        w.style.left = Math.max(-w.offsetWidth + 80, Math.min(innerWidth - 80, ev.clientX - sx)) + 'px';
+        w.style.top = Math.max(0, Math.min(innerHeight - 80, ev.clientY - sy)) + 'px';
+      };
+      const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
+      addEventListener('mousemove', move); addEventListener('mouseup', up);
+    });
+  }
+
+  // Neue App registrieren: Fenster + Desktop-Symbol (+ optional Taskleiste)
+  addApp({ id, title, color, svg, w = 420, h = 360, dark = false, pinned = false, hiddenIcon = false }) {
+    const win = document.createElement('div');
+    win.className = 'win' + (dark ? ' dark' : '');
+    win.dataset.app = id; win.hidden = true;
+    win.innerHTML = `<div class="tbar"><span class="ti" style="background:${color}"><svg viewBox="0 0 24 24">${svg}</svg></span><span class="tt">${title}</span><button data-min>–</button><button data-max>□</button><button class="x" data-close>✕</button></div><div class="wbody"></div>`;
+    win.dataset.size = JSON.stringify([w, h]);
+    this.el.insertBefore(win, $('#incoming'));
+    this.bindWin(win);
+    const icon = document.createElement('button');
+    icon.className = 'icon'; icon.dataset.open = id; icon.hidden = hiddenIcon;
+    icon.innerHTML = `<span class="ico" style="background:${color}"><svg viewBox="0 0 24 24">${svg}</svg></span>${title}`;
+    icon.addEventListener('click', () => this.openWin(id));
+    $('#icons').appendChild(icon);
+    if (pinned) {
+      const tb = document.createElement('button');
+      tb.className = 'tb'; tb.dataset.open = id; tb.title = title; tb.style.background = color;
+      tb.innerHTML = `<svg viewBox="0 0 24 24">${svg}</svg>`;
+      tb.addEventListener('click', () => this.openWin(id));
+      $('#taskbar').insertBefore(tb, $('#taskbar .stats'));
+    }
+    return { win, body: win.querySelector('.wbody'), icon };
+  }
+
   layout() {
     const W = innerWidth, H = innerHeight - 46;
     const place = (id, l, t, w, h) => Object.assign($(id).style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px' });
@@ -170,6 +212,12 @@ export class Computer {
   openWin(app) {
     const w = this.el.querySelector(`.win[data-app="${app}"]`);
     if (!w) return;
+    if (w.dataset.size && !w.style.width) {
+      const [ww, hh] = JSON.parse(w.dataset.size);
+      const W = Math.min(ww, innerWidth - 20), H = Math.min(hh, innerHeight - 66);
+      const n = this.el.querySelectorAll('.win:not([hidden])').length;
+      Object.assign(w.style, { width: W + 'px', height: H + 'px', left: Math.max(10, Math.min(innerWidth - W - 10, 180 + n * 28)) + 'px', top: Math.max(10, Math.min(innerHeight - H - 56, 30 + n * 24)) + 'px' });
+    }
     w.hidden = false;
     this.focus(w);
     this.renderTaskbar();
@@ -192,7 +240,7 @@ export class Computer {
   }
   deco(kind) {
     if (kind === 'bg') { this.wpIndex = (this.wpIndex + 1) % 3; this.setWallpaper(); return; }
-    this.game.toast(kind === 'shop' ? '🛒 Scamazon: Lieferung frühestens nach der Beurteilung.' : '🌐 Der Chef hat das Internet gesperrt. Nur RemoteBuddy geht.');
+    this.game.toast('Diese App ist gerade nicht verfügbar.');
   }
   setWallpaper() {
     this.wallpapers ||= [];
@@ -250,7 +298,8 @@ export class Computer {
   // ---------------- Anrufe ----------------
   ring(call) {
     this.call = { ...call, state: 'ringing', history: [], trust: null, installed: false, codeGiven: false, connected: false,
-      bankLoggedIn: false, blackout: false, balance: call.persona.money, stolen: 0, thinking: false, ringStart: performance.now() };
+      bankLoggedIn: false, blackout: false, balance: call.persona.money, stolen: 0, thinking: false, ringStart: performance.now(),
+      data: makeCallerData(), revealed: {}, redeemed: {} };
     this.files = this.makeDesktopFiles(call.persona);
     drawFace($('#in-face'), call.persona.look, 50, true);
     this.render();
@@ -288,6 +337,7 @@ export class Computer {
     const c = this.call;
     if (!c || c.state !== 'active') return;
     this.log('me', text);
+    if (text.length > 12 && Math.random() < 0.5) this.game.addQuote(this.game.me?.name || 'Du', text.slice(0, 120));
     c.history.push({ role: 'user', content: `Mitarbeiter: ${text}` });
     this.game.net.send('bubble', { desk: this.desk?.index, text: '🎧 ' + text.slice(0, 60) });
     this.ask();
@@ -306,7 +356,7 @@ export class Computer {
     if (c.thinking) { c.pending = true; return; }
     c.thinking = true;
     $('#ph-typing').textContent = `${c.persona.name} denkt nach ...`;
-    const res = await think({ mode: 'caller', persona: c.persona, scam: c.scam, remoteCode: c.code, history: c.history });
+    const res = await think({ mode: 'caller', persona: c.persona, scam: c.scam, remoteCode: c.code, data: c.data, history: c.history });
     if (this.call !== c) return;
     c.thinking = false;
     $('#ph-typing').textContent = '';
@@ -318,14 +368,21 @@ export class Computer {
     this.log('them', res.say);
     this.game.net.send('bubble', { desk: this.desk?.index, text: '📞 ' + String(res.say).slice(0, 70) });
     this.say(res.say, c.persona.voice);
-    this.handleAction(res.action);
+    this.handleAction(res.action, res.info_type);
     this.render();
     if (c.pending && c.state === 'active') { c.pending = false; this.ask(); }
   }
 
-  handleAction(action) {
+  handleAction(action, infoType) {
     const c = this.call;
     switch (action) {
+      case 'give_info':
+        if (INFO_LABEL[infoType]) {
+          c.revealed[infoType] = true;
+          this.log('sys', `📝 ${INFO_LABEL[infoType]} erhalten: in der App "${INFO_APP[infoType]}" eingeben!`);
+          this.game.apps?.highlight(infoType);
+        }
+        break;
       case 'install_remote':
         c.installed = true;
         this.log('sys', '✅ RemoteBuddy installiert. Frag nach dem Code!');
@@ -461,6 +518,7 @@ export class Computer {
 
   // ---------------- Viren ----------------
   infect(hard = false) {
+    if (this.game.apps?.owned.has('mwpro')) { this.game.toast('🛡️ Malwarebits Pro hat einen Virus blockiert.'); if (this.call) this.call.connected = false; this.renderRemote(); return; }
     voice.buzz();
     this.game.toast('🦠 VIRUS! Schließ die Popups!');
     if (this.call) this.call.connected = false;
@@ -523,7 +581,7 @@ export class Computer {
     $('#sc-title').textContent = c ? `${c.scam.icon} ${c.scam.name}` : 'Kein aktiver Anruf';
     $('#sc-lure').textContent = c ? c.scam.lure : 'Sobald ein Anrufer dran ist, steht hier, warum er anruft.';
     $('#sc-tip').textContent = '💡 ' + (c ? c.scam.tip : 'Erst Vertrauen aufbauen, dann RemoteBuddy.');
-    const steps = [['RemoteBuddy installiert', c?.installed], ['Code erhalten', c?.codeGiven], ['Verbunden', c?.connected], ['Bank-Login', c?.bankLoggedIn], [`Erbeutet: ${euro(c?.stolen || 0)}`, (c?.stolen || 0) > 0]];
+    const steps = [['RemoteBuddy installiert', c?.installed], ['Code erhalten', c?.codeGiven], ['Verbunden', c?.connected], ['Bank-Login', c?.bankLoggedIn], ['Daten erhalten (Gutschein/ID/Karte)', c && Object.keys(c.revealed).length > 0], [`Erbeutet: ${euro(c?.stolen || 0)}`, (c?.stolen || 0) > 0]];
     $('#sc-steps').innerHTML = steps.map(([n, ok]) => `<span class="${ok ? 'ok' : ''}">${ok ? '☑' : '☐'} ${esc(n)}</span>`).join('');
     this.renderRemote();
     this.renderTaskbar();

@@ -404,6 +404,86 @@ export function buildOffice(scene) {
     s.visible = false;
     scene.add(s); flames.push(s);
   }
+  // ---------- Pinnwand (JW Paint) neben der Küche ----------
+  const pinCanvas = document.createElement('canvas'); pinCanvas.width = 448; pinCanvas.height = 300;
+  const pinTex = new THREE.CanvasTexture(pinCanvas); pinTex.colorSpace = THREE.SRGBColorSpace;
+  const pg = pinCanvas.getContext('2d');
+  pg.fillStyle = '#b8864f'; pg.fillRect(0, 0, 448, 300);
+  for (let i = 0; i < 900; i++) { pg.fillStyle = `rgba(${Math.random() < 0.5 ? '90,60,30' : '230,190,140'},0.25)`; pg.fillRect(Math.random() * 448, Math.random() * 300, 3, 3); }
+  pg.strokeStyle = '#6b4a2a'; pg.lineWidth = 14; pg.strokeRect(0, 0, 448, 300);
+  pg.fillStyle = '#2a1a10'; pg.font = `30px ${FONT.hand}`; pg.textAlign = 'center'; pg.fillText('Kunst der Woche', 224, 150);
+  pinTex.needsUpdate = true;
+  const pin = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.07), new THREE.MeshStandardMaterial({ map: pinTex, roughness: 0.9 }));
+  pin.position.set(ROOM.minX + 0.02, 1.7, -1.6); pin.rotation.y = Math.PI / 2;
+  scene.add(pin);
+  const setPinboard = (img) => {
+    pg.fillStyle = '#b8864f'; pg.fillRect(14, 14, 420, 272);
+    pg.save(); pg.translate(224, 150); pg.rotate((Math.random() - 0.5) * 0.08);
+    pg.fillStyle = '#fff'; pg.fillRect(-180, -112, 360, 224);
+    pg.drawImage(img, -172, -104, 344, 208);
+    pg.restore();
+    pg.fillStyle = '#d33'; pg.beginPath(); pg.arc(224, 40, 8, 0, 7); pg.fill();
+    pinTex.needsUpdate = true;
+  };
+
+  // ---------- Zitate-Wand (was Spieler am Telefon gesagt haben, wie im Original) ----------
+  const qwCanvas = document.createElement('canvas'); qwCanvas.width = 640; qwCanvas.height = 400;
+  const qwTex = new THREE.CanvasTexture(qwCanvas); qwTex.colorSpace = THREE.SRGBColorSpace;
+  const qw = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.0), new THREE.MeshBasicMaterial({ map: qwTex }));
+  qw.position.set(-7.2, 1.75, ROOM.minZ + 0.02);
+  scene.add(qw);
+  const setQuotes = (quotes) => {
+    const g = qwCanvas.getContext('2d');
+    g.fillStyle = '#e88a1a'; g.fillRect(0, 0, 640, 400);
+    g.fillStyle = '#2a1404'; g.font = `700 30px ${FONT.ui}`; g.fillText('Was hat der Kunde gehört?', 24, 46);
+    const list = quotes.length ? quotes.slice(-3) : [['Chef Brenner', 'Hier landen eure besten Sprüche vom Telefon.']];
+    list.forEach(([who, text], i) => {
+      const y = 70 + i * 106;
+      g.fillStyle = '#ffd94a'; g.fillRect(24, y, 592, 94);
+      g.fillStyle = '#2a1404'; g.beginPath(); g.arc(52, y + 30, 16, 0, 7); g.fill();
+      g.fillStyle = '#ffd94a'; g.font = `700 18px ${FONT.ui}`; g.textAlign = 'center'; g.fillText(String(i + 1), 52, y + 36); g.textAlign = 'left';
+      g.fillStyle = '#2a1404'; g.font = `500 21px ${FONT.ui}`;
+      const words = `${who} sagte: "${text}"`.split(' '); let line = '', ly = y + 34;
+      for (const w of words) { if (g.measureText(line + w).width > 520) { g.fillText(line, 80, ly); line = ''; ly += 26; if (ly > y + 86) break; } line += w + ' '; }
+      if (ly <= y + 86) g.fillText(line, 80, ly);
+    });
+    qwTex.needsUpdate = true;
+  };
+  setQuotes([]);
+
+  // ---------- Keks-Regen (Meteor Cookie) und Explosionen (Luftschlag) ----------
+  const cookieGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 14);
+  const cookieMat = mat(0xb87a3c, { roughness: 0.9 });
+  const cookies = [];
+  const cookieRain = (n = 90) => {
+    for (let i = 0; i < n; i++) {
+      const c = new THREE.Mesh(cookieGeo, cookieMat);
+      c.position.set(-11 + Math.random() * 14.5, ROOM.h - 0.1 + Math.random() * 4, -7.5 + Math.random() * 15);
+      c.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+      c.castShadow = true;
+      c.userData = { vy: -Math.random() * 2, spin: (Math.random() - 0.5) * 8, life: 25 + Math.random() * 10 };
+      scene.add(c); cookies.push(c);
+    }
+  };
+  const blasts = [];
+  const blastTex = canvasTex(128, 128, (g) => {
+    const grd = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grd.addColorStop(0, '#fffbe0'); grd.addColorStop(0.3, '#ffcf40'); grd.addColorStop(0.65, '#ff5a10'); grd.addColorStop(1, 'rgba(80,20,0,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  });
+  const explosion = (x, z) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: blastTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sp.position.set(x, 1.2, z); sp.scale.set(0.5, 0.5, 1);
+    scene.add(sp);
+    const l = new THREE.PointLight(0xff8a30, 40, 9, 2); l.position.set(x, 1.5, z); scene.add(l);
+    blasts.push({ sp, l, t: 0 });
+    // Brandstelle bleibt kurz
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.position.set(x, 0.4, z); f.scale.set(0.7, 1, 1); scene.add(f);
+    blasts.push({ sp: f, t: -6, flame: true });
+  };
+  let lastT = 0;
+
   let fired = false, powered = true;
   const applyLights = () => {
     const lightColor = fired ? 0xff3a10 : 0xffc98c;
@@ -423,11 +503,24 @@ export function buildOffice(scene) {
     if (on) setTV('GEFEUERT!', 'Quote verfehlt.', '#3a0606', '#ff5a3a'); else setTV('QUOTE!', 'Oder raus.');
   };
   const update = (t) => {
-    if (!fired) return;
-    flames.forEach((f, i) => { const k = 0.8 + Math.sin(t * 9 + i * 1.7) * 0.2; f.scale.set(0.6 * k, 0.95 * k + 0.1, 1); });
+    const dt = Math.min(0.05, t - lastT || 0); lastT = t;
+    if (fired) flames.forEach((f, i) => { const k = 0.8 + Math.sin(t * 9 + i * 1.7) * 0.2; f.scale.set(0.6 * k, 0.95 * k + 0.1, 1); });
+    for (let i = cookies.length - 1; i >= 0; i--) {
+      const c = cookies[i], u = c.userData;
+      u.life -= dt;
+      if (c.position.y > 0.03) { u.vy -= 9.8 * dt; c.position.y = Math.max(0.03, c.position.y + u.vy * dt); c.rotation.x += u.spin * dt; if (c.position.y <= 0.03) c.rotation.set(0, Math.random() * 3, 0); }
+      if (u.life < 0) { scene.remove(c); cookies.splice(i, 1); }
+    }
+    for (let i = blasts.length - 1; i >= 0; i--) {
+      const b = blasts[i];
+      b.t += dt;
+      if (b.flame) { const k = 0.8 + Math.sin(t * 10 + i) * 0.2; b.sp.scale.set(0.7 * k, 1.1 * k, 1); if (b.t > 0) { scene.remove(b.sp); blasts.splice(i, 1); } continue; }
+      const s2 = 0.5 + b.t * 9; b.sp.scale.set(s2, s2, 1); b.sp.material.opacity = Math.max(0, 1 - b.t * 1.6); b.l.intensity = Math.max(0, 40 - b.t * 70);
+      if (b.t > 0.7) { scene.remove(b.sp); scene.remove(b.l); blasts.splice(i, 1); }
+    }
   };
 
-  return { colliders, interactables, solids, desks, props, lights, hemi, sun, updateWhiteboard, setPower, setFired, setTV, update };
+  return { colliders, interactables, solids, desks, props, lights, hemi, sun, updateWhiteboard, setPower, setFired, setTV, update, setPinboard, setQuotes, cookieRain, explosion };
 }
 
 // ---------- Cartoon-Figur wie im Original: großer Kopf, orange-braune Haut, Headset, Schnurrbart ----------
