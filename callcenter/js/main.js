@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import { CONFIG, SCAMS } from '../config.js';
 import { buildOffice, makeAvatar, textSprite, ROOM } from './office.js';
 import { Computer } from './computer.js';
-import { Net, netAvailable } from './net.js';
-import { think, brainMode, BRAIN_LABEL, getApiKey, setApiKey, preloadBrain } from './brain.js';
+import { Net, netAvailable, initNet } from './net.js';
+import { think, brainMode, BRAIN_LABEL, getApiKey, setApiKey, preloadBrain, initBrain, inClaude } from './brain.js';
 import * as voice from './voice.js';
 
 const $ = (s) => document.querySelector(s);
@@ -87,10 +87,17 @@ class Game {
       keyInput.value = getApiKey() ? '••••••••' : '';
       refreshMode();
     });
-    if (!netAvailable()) {
-      $('#m-host').disabled = $('#m-join').disabled = true;
-      $('#m-netinfo').textContent = 'Online-Koop ist noch nicht eingerichtet (Supabase in config.js eintragen).';
-    }
+    $('#m-keywrap').hidden = inClaude;
+    const refreshNet = () => {
+      const ok = netAvailable();
+      $('#m-host').disabled = $('#m-join').disabled = !ok;
+      $('#m-netinfo').textContent = ok ? '' : inClaude
+        ? 'Koop braucht eine Anmeldung bei Claude.'
+        : 'Online-Koop ist noch nicht eingerichtet (Supabase in config.js eintragen).';
+    };
+    refreshNet();
+    // Fähigkeiten von Claude kommen asynchron an
+    Promise.all([initBrain(), initNet()]).then(() => { refreshMode(); refreshNet(); });
     const me = () => {
       const n = name.value.trim() || 'Praktikant ' + Math.floor(Math.random() * 99);
       try { localStorage.setItem('ccc_name', n); } catch {}
@@ -118,7 +125,8 @@ class Game {
         $('#m-netinfo').textContent = '❌ ' + e.message;
         return;
       }
-      $('#room-code').textContent = `Raum: ${room}`;
+      $('#room-code').textContent = `Raum-Code: ${room}`;
+      setTimeout(() => this.toast(`👥 Raum-Code: ${room} - Freunde öffnen dieselbe Seite und treten damit bei`), 800);
     }
     $('#menu').classList.add('hide');
     $('#hud').classList.add('show');

@@ -43,7 +43,7 @@ export class Computer {
     const stop = (e) => { e.preventDefault(); this.stopTalk(); };
     talk.addEventListener('mousedown', start); talk.addEventListener('mouseup', stop); talk.addEventListener('mouseleave', stop);
     talk.addEventListener('touchstart', start); talk.addEventListener('touchend', stop);
-    if (!voice.canListen) { talk.disabled = true; talk.textContent = '🎙️ Mikro nur in Chrome/Edge'; }
+    if (!voice.canListen) { talk.hidden = true; input.placeholder = 'Was sagst du dem Anrufer? (Enter = senden)'; }
     $('#rb-connect').addEventListener('click', () => this.remoteConnect());
     $('#rb-id').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.remoteConnect(); });
     $('#notes-area').addEventListener('keydown', (e) => e.stopPropagation());

@@ -1,6 +1,7 @@
 // Spracherkennung (Mikrofon -> Text) und Sprachausgabe (Text -> Stimme) über die Web Speech API.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-export const canListen = !!SR;
+// In Claude (Artifact) ist das Mikrofon gesperrt: dort wird getippt.
+export const canListen = !!SR && !(window.claude && typeof window.claude.use === 'function');
 
 let rec = null;
 let listening = false;

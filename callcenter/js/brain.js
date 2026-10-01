@@ -1,9 +1,18 @@
 // Verbindet das Spiel mit dem Anrufer-Gehirn: Supabase Edge Function, eigener API-Key oder Offline-Modus.
 import { CONFIG } from '../config.js';
-import { buildParams, parseResponse } from '../supabase/functions/caller-brain/brain-core.js';
+import { buildParams, parseResponse, buildRequest } from '../supabase/functions/caller-brain/brain-core.js';
 
 const LS_KEY = 'ccc_apikey';
 let sdkClient = null;
+
+// In Claude veröffentlicht (Artifact): Claude selbst spielt die Anrufer über die "sample"-Fähigkeit.
+export const inClaude = !!(window.claude && typeof window.claude.use === 'function');
+let sampleFn = null;
+export async function initBrain() {
+  if (!inClaude) return;
+  try { sampleFn = await window.claude.use('sample'); } catch { sampleFn = null; }
+}
+let sampleBlocked = false;
 
 export function getApiKey() {
   try { return localStorage.getItem(LS_KEY) || ''; } catch { return ''; }
@@ -14,12 +23,14 @@ export function setApiKey(k) {
 }
 
 export function brainMode() {
+  if (sampleFn && !sampleBlocked) return 'claude';
   if (getApiKey()) return 'apikey';
   if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY) return 'supabase';
   return 'offline';
 }
 
 export const BRAIN_LABEL = {
+  claude: 'KI: Claude (direkt in Claude)',
   apikey: 'KI: Claude (eigener API-Key)',
   supabase: 'KI: Claude (Server)',
   offline: 'KI: Offline-Testmodus (ohne LLM)',
@@ -43,6 +54,26 @@ async function viaApiKey(input) {
   const client = await getClient();
   const response = await client.beta.messages.create(buildParams(input, CONFIG.MODEL));
   return parseResponse(response);
+}
+
+const SAMPLE_FORMAT = {
+  caller: 'Antworte NUR mit einem JSON-Objekt der Form {"say": string, "trust": integer 0-100, "action": "none"|"install_remote"|"give_remote_code"|"login_bank"|"hang_up"}. Beispiel: {"say":"Hallo? Wer ist da?","trust":30,"action":"none"}',
+  boss: 'Antworte NUR mit einem JSON-Objekt der Form {"say": string}.',
+};
+
+async function viaSample(input) {
+  const req = buildRequest(input);
+  const kind = input.mode === 'boss' ? 'boss' : 'caller';
+  const turns = [{ role: 'user', content: `${req.system}\n\nAUSGABEFORMAT: ${SAMPLE_FORMAT[kind]}\n\nDas Gespräch folgt.` }, ...req.messages];
+  try {
+    const out = await sampleFn.json(turns, { modelTier: 'quick', cache: false });
+    if (!out || typeof out.say !== 'string') throw { code: 'invalid_json', message: 'Antwort ohne "say"' };
+    return out;
+  } catch (e) {
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e?.code)) sampleBlocked = true;
+    if (e?.code === 'refused' && kind === 'caller') return { say: '*Rauschen* ... Hallo? Die Leitung ist so schlecht ...', trust: 0, action: 'hang_up' };
+    throw new Error(e?.code === 'not_granted' ? 'Claude-Zugriff wurde nicht erlaubt' : (e?.message || e?.code || 'Fehler'));
+  }
 }
 
 async function viaSupabase(input) {
@@ -102,6 +133,7 @@ export async function think(input) {
     return input.mode === 'boss' ? offlineBoss(input.stats) : offlineBrain(input);
   }
   try {
+    if (mode === 'claude') return await viaSample(input);
     return mode === 'apikey' ? await viaApiKey(input) : await viaSupabase(input);
   } catch (e) {
     console.warn('Brain-Fehler, nutze Offline-Fallback:', e);

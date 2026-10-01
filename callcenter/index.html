@@ -6,6 +6,8 @@
 <title>Callcenter Chaos</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+:root{color-scheme:dark}
+[hidden]{display:none!important}
 body{overflow:hidden;background:#111;font-family:Segoe UI,Arial,sans-serif;color:#eee}
 canvas{display:block}
 button{font:inherit;cursor:pointer}
@@ -157,10 +159,12 @@ input,textarea{font:inherit}
       <button class="btn" id="m-join">Beitreten</button>
     </div>
     <div id="m-netinfo"></div>
-    <label>Claude-API-Key (optional, bleibt nur in deinem Browser)</label>
-    <div class="row2">
-      <input id="m-apikey" type="password" placeholder="sk-ant-...">
-      <button class="btn" id="m-savekey">Speichern</button>
+    <div id="m-keywrap">
+      <label for="m-apikey">Claude-API-Key (optional, bleibt nur in deinem Browser)</label>
+      <div class="row2">
+        <input id="m-apikey" type="password" placeholder="sk-ant-...">
+        <button class="btn" id="m-savekey">Speichern</button>
+      </div>
     </div>
     <div id="m-brain"></div>
     <div class="help">
