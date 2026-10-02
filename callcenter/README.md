@@ -13,6 +13,14 @@ Spielen: `index.html` über einen Webserver öffnen (z.B. GitHub Pages → `/mot
 5. Gefahren: **Viren** (falsche Datei geöffnet → Popups auf deinem PC), **Scambaiter** (Fake-Konto, -20 %, du landest auf YouTube), **Polizeirazzia** (zum Schredder rennen), **Stromausfall** (Sicherungskasten).
 6. Um 17:00 Uhr kommt die **Leistungsbeurteilung**. Quote verfehlt bedeutet gefeuert, und der Run startet neu. Jeden Tag wird eine neue Masche freigeschaltet.
 
+## Apps auf dem PC (wie im Original)
+
+- Telefon (Anrufer-Vertrauen mit Änderung, Porträt, Annehmen/Auflegen), RemoteBuddy (Fernzugriff), Kamera (mit Untertiteln), Skript, Notizen, Hintergründe
+- Daten-Apps mit einzeln geprüften Feldern, im Scamazon-Tab „Scams“ nach Tagen freischaltbar: Gutscheine, Kreditkarte, Bitcoin, Identität, Bank, Passwort-Wiederherstellung, Flugmeilen, Kundeninfo (Live-Profil des Anrufers)
+- 16 Bezahl-Portale (Krankenkasse, Dating, Rentenfonds ...), Scamazon-Shop, Rainbit-Casino, Meteor Cookie, JW Paint, Discorde, Zoomy, Malwarebits, Ledger, Browser, Banditcam
+- Viren: „VIRUS ENTDECKT“, Glitch, fliegende Symbole, Werbe-Taskleiste, Popups, System-Meldungen
+- Feierabend: Countdown, Live-Statistik an der Wand, Beurteilungs-Karte, Kündigungsbericht, brennendes Büro
+
 ## KI-Modi (Anrufer-Gehirn)
 
 | Modus | Einrichtung |

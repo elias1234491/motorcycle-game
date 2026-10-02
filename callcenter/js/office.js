@@ -299,22 +299,35 @@ export function buildOffice(scene) {
   const qScreen = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.0), new THREE.MeshBasicMaterial({ map: qTex }));
   qScreen.position.set(-1.0, 1.75, ROOM.minZ + 0.02);
   scene.add(qScreen);
-  const updateWhiteboard = ({ day, clock, earned, quota, board = [] }) => {
+  // Live-Statistik wie im Original: Quote-Balken, Restzeit, Umsatz, Spitzenreiter, Agenten
+  const updateWhiteboard = ({ day, clock, earned, quota, board = [], left = '6:00' }) => {
     const g = qCanvas.getContext('2d');
-    g.fillStyle = '#f3d23c'; g.fillRect(0, 0, 640, 360);
-    g.fillStyle = '#2a2208'; g.font = `700 36px ${FONT.ui}`; g.fillText('Call-Analyse', 28, 52);
-    g.font = `500 24px ${FONT.ui}`; g.fillText(`Tag ${day} · ${clock}`, 420, 50);
-    const rows = [[`Team-Umsatz`, `${Math.round(earned).toLocaleString('de-DE')} €`], [`Quote`, `${Math.round(quota).toLocaleString('de-DE')} €`]];
-    rows.forEach(([a, b], i) => {
-      g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(28, 76 + i * 56, 584, 46);
-      g.fillStyle = '#2a2208'; g.font = `500 26px ${FONT.ui}`; g.fillText(a, 44, 108 + i * 56);
-      g.font = `700 28px ${FONT.ui}`; g.fillText(b, 420, 108 + i * 56);
-    });
+    g.fillStyle = '#6e1512'; g.fillRect(0, 0, 640, 360);
+    g.strokeStyle = '#e8762a'; g.lineWidth = 3; g.strokeRect(6, 6, 628, 348);
     const p = Math.min(1, earned / Math.max(1, quota));
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(28, 200, 584, 26);
-    g.fillStyle = p >= 1 ? '#1d8a3a' : '#c0392b'; g.fillRect(28, 200, 584 * p, 26);
-    g.fillStyle = '#2a2208'; g.font = `500 22px ${FONT.ui}`;
-    board.slice(0, 4).forEach(([n, v], i) => g.fillText(`#${i + 1} ${n}: ${Math.round(v).toLocaleString('de-DE')} €`, 34 + (i % 2) * 300, 268 + Math.floor(i / 2) * 36));
+    g.fillStyle = '#ffb35a'; g.font = `700 15px ${FONT.ui}`; g.fillText(`TAG ${day} · ${clock}`, 22, 32);
+    g.textAlign = 'right'; g.fillText('RESTZEIT', 530, 32); g.font = `800 30px ${FONT.ui}`; g.fillText(left, 620, 36); g.textAlign = 'left';
+    g.fillStyle = '#3a0a08'; g.beginPath(); g.roundRect(22, 50, 596, 28, 14); g.fill();
+    g.fillStyle = p >= 1 ? '#36d46a' : '#ff6a1a'; g.beginPath(); g.roundRect(22, 50, Math.max(28, 596 * p), 28, 14); g.fill();
+    g.fillStyle = '#ffd9b0'; g.font = `700 14px ${FONT.ui}`;
+    g.fillText(p >= 1 ? 'QUOTE GESCHAFFT!' : `${Math.round(quota - earned).toLocaleString('de-DE')} € FEHLEN  |  ${Math.round(p * 100)}% GESCHAFFT`, 30, 98);
+    g.strokeStyle = '#a8401c'; g.lineWidth = 2; g.beginPath(); g.moveTo(22, 112); g.lineTo(618, 112); g.moveTo(320, 122); g.lineTo(320, 250); g.stroke();
+    g.fillStyle = '#ffb35a'; g.font = `800 15px ${FONT.ui}`; g.textAlign = 'center';
+    g.fillText('TEAM-UMSATZ', 170, 142); g.fillText('SPITZENREITER', 470, 142);
+    g.fillStyle = '#8fe04a'; g.font = `800 40px ${FONT.ui}`; g.fillText(`${Math.round(earned).toLocaleString('de-DE')} €`, 170, 196);
+    g.font = `500 13px ${FONT.ui}`; g.fillText('Live-Statistik', 170, 220);
+    const lead = board[0];
+    g.fillStyle = '#ffb35a'; g.font = `800 36px ${FONT.ui}`; g.fillText(lead ? `{ ${lead[0].slice(0, 12)} }` : '{ — }', 470, 196);
+    g.font = `500 14px ${FONT.ui}`; g.fillText(lead ? `${Math.round(lead[1]).toLocaleString('de-DE')} € heute` : 'Noch niemand', 470, 220);
+    g.textAlign = 'left';
+    g.strokeStyle = '#a8401c'; g.beginPath(); g.moveTo(22, 260); g.lineTo(618, 260); g.stroke();
+    g.fillStyle = '#ffb35a'; g.font = `700 12px ${FONT.ui}`; g.fillText('AGENTEN', 22, 280);
+    board.slice(0, 4).forEach(([n, v], i) => {
+      const x = 22 + i * 150;
+      g.fillStyle = '#e2703a'; g.beginPath(); g.arc(x + 14, 312, 13, 0, 7); g.fill();
+      g.fillStyle = '#ffd9b0'; g.font = `700 14px ${FONT.ui}`; g.fillText(n.slice(0, 11), x + 32, 308);
+      g.fillStyle = '#8fe04a'; g.font = `600 12px ${FONT.ui}`; g.fillText(`${Math.round(v).toLocaleString('de-DE')} €`, x + 32, 326);
+    });
     qTex.needsUpdate = true;
   };
   updateWhiteboard({ day: 1, clock: '09:00', earned: 0, quota: 0 });
@@ -496,11 +509,11 @@ export function buildOffice(scene) {
     scene.fog.color.setHex(fired ? 0x5a1206 : 0x2b1c16);
   };
   const setPower = (on) => { powered = on; applyLights(); };
-  const setFired = (on) => {
+  const setFired = (on, info = 'Quote verfehlt.') => {
     fired = on;
     flames.forEach(f => (f.visible = on));
     applyLights();
-    if (on) setTV('GEFEUERT!', 'Quote verfehlt.', '#3a0606', '#ff5a3a'); else setTV('QUOTE!', 'Oder raus.');
+    if (on) setTV('GEFEUERT!', info, '#3a0606', '#ff5a3a'); else setTV('QUOTE!', 'Oder raus.');
   };
   const update = (t) => {
     const dt = Math.min(0.05, t - lastT || 0); lastT = t;

@@ -545,7 +545,7 @@ class Game {
     const passed = this.earned >= this.quota;
     const stats = { day: this.day, quota: this.quota, earned: this.earned, passed, events: this.events.join('; '), board: this.rankedBoard() };
     this.showReview(stats, null);
-    const res = await think({ mode: 'boss', stats });
+    const [res] = await Promise.all([think({ mode: 'boss', stats }), new Promise(r => setTimeout(r, 2500))]);
     this.showReview(stats, res.say);
     this.net.send('review', { stats, text: res.say });
     if (!passed) { this.phase = 'fired'; this.broadcastState(); }
@@ -553,12 +553,15 @@ class Game {
 
   showReview(stats, text) {
     if (this.seated) this.standUp();
+    $('#rv-card').hidden = !!text;
+    $('#review .report').hidden = !text;
+    if (!text) { $('#review').classList.add('show'); this.office.setFired(false); voice.beep(220, 0.5, 'triangle', 0.1); }
     document.exitPointerLock?.();
     this.phase = stats.passed ? 'review' : 'fired';
     if (this.chaos?.kind === 'power') this.endPower(false);
     this.chaos = null;
     this.banner('');
-    this.office.setFired(!stats.passed);
+    if (text) this.office.setFired(!stats.passed, `Quote verfehlt um ${euro(stats.quota - stats.earned)} · ${euro(stats.earned)} von ${euro(stats.quota)}`);
     $('#review').classList.add('show');
     $('#rv-eyebrow').textContent = stats.passed ? 'Callcenter Chaos · Leistungsbericht' : 'Callcenter Chaos · Kündigungsbericht';
     $('#rv-title').textContent = stats.passed ? `Tag ${stats.day} überstanden` : 'Alle gefeuert';
@@ -690,7 +693,7 @@ class Game {
       this.toast('📉 ' + m.reason);
       this.broadcastState();
     });
-    n.on('review', (m) => { if (!n.isHost) this.showReview(m.stats, m.text); });
+    n.on('review', (m) => { if (!n.isHost) { this.showReview(m.stats, null); setTimeout(() => this.showReview(m.stats, m.text), 2500); } });
     n.on('chaos', (m) => { if (!n.isHost) this.startChaos(m.kind); });
     n.on('fuse', () => this.endPower(true));
     n.on('hit', (m) => this.onHit(m));
@@ -890,7 +893,14 @@ class Game {
     const t = !this.seated && this.phase !== 'menu' ? this.lookTarget() : null;
     $('#prompt').textContent = this.held ? '[E] fallen lassen · [Klick] werfen' : this.promptFor(t);
     if (this.wbT % 60 === 0 && this.computer.isOpen) { if (!this.apps.win.shop.win.hidden) this.apps.renderShop(); this.apps.renderLedger(); }
-    if ((this.wbT = (this.wbT || 0) + 1) % 30 === 0) this.office.updateWhiteboard({ day: this.day, clock: this.clock, earned: this.earned, quota: this.quota, board: this.rankedBoard() });
+    if ((this.wbT = (this.wbT || 0) + 1) % 30 === 0) this.office.updateWhiteboard({ day: this.day, clock: this.clock, earned: this.earned, quota: this.quota, board: this.rankedBoard(), left: this.reviewIn });
+    // Countdown "Feierabend in 5" + roter Bildschirm in den letzten Sekunden
+    const rest = CONFIG.DAY_SECONDS - this.time;
+    const ending = this.phase === 'work' && rest <= 10;
+    $('#dayend').hidden = !ending;
+    document.body.classList.toggle('ending', ending);
+    if (ending) $('#dayend b').textContent = Math.max(1, Math.ceil(rest));
+    if (this.wbT % 60 === 0) this.apps.win.shop.icon.classList.toggle('new', this.apps.hasNew());
   }
 
   // Webcam-Bild der eigenen Figur ins Kamera-Fenster zeichnen (wie im Original)

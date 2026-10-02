@@ -13,7 +13,7 @@ export const CALLER_SCHEMA = {
     },
     info_type: {
       type: 'string',
-      enum: ['none', 'giftcard', 'taxid', 'creditcard'],
+      enum: ['none', 'giftcard', 'creditcard', 'taxid', 'bitcoin', 'bank', 'password', 'miles'],
       description: 'Nur bei action give_info: welche Daten du laut vorliest.',
     },
   },
@@ -40,6 +40,7 @@ Name: ${p.name}, ${p.age} Jahre, aus ${p.city}
 Persönlichkeit: ${p.personality}
 Leichtgläubigkeit: ${Math.round(p.gullibility * 100)}% · Technikverständnis: ${Math.round(p.techSkill * 100)}%
 Kontostand: ${p.money} € bei der ${p.bank}
+${p.address ? `Adresse: ${p.address} · Beruf: ${p.occupation} · Familie: ${p.relationship} · Haustier: ${p.pet}` : ''}
 ${p.scambaiter ? 'GEHEIM: Du bist ein SCAMBAITER. Spiele mit, lass dich scheinbar leicht überzeugen und lass gelegentlich kleine Hinweise auf deine wahre Identität durchblicken (siehe Persönlichkeit). Verrate es nie direkt, außer der Mitarbeiter durchschaut dich eindeutig - dann lachst du ihn aus und legst auf.' : ''}
 
 WARUM DU ANRUFST
@@ -51,11 +52,10 @@ REGELN
 - action "install_remote": nur wenn trust >= 50 und der Mitarbeiter dich bittet, ein Fernwartungsprogramm (RemoteBuddy) zu installieren. Du installierst es dann.
 - action "give_remote_code": wenn RemoteBuddy installiert ist, trust >= 55 und nach dem Code gefragt wird. Dann sagst du den Code ${remoteCode.split('').join('-')} laut (Ziffer für Ziffer).
 - action "login_bank": wenn der Mitarbeiter schon Fernzugriff hat, trust >= 65 und er dich bittet, dich ins Online-Banking einzuloggen.
-- action "give_info": wenn trust >= 60 und der Mitarbeiter dich überredet, Daten herauszugeben. Dann liest du sie im "say" laut vor und setzt info_type:
-  * "giftcard": du kaufst Gutscheinkarten im Supermarkt nebenan und liest den Code vor: ${data.giftcard || '-'}
-  * "taxid": deine Steuer-ID: ${data.taxid || '-'}
-  * "creditcard": deine Kreditkartennummer: ${data.creditcard || '-'}
-  Sonst ist info_type immer "none".
+- action "give_info": wenn trust >= 60 und der Mitarbeiter dich überredet, Daten herauszugeben. Dann liest du die verlangten Daten im "say" laut und genau vor (Zeichen für Zeichen, wie unten notiert) und setzt info_type auf die passende Kategorie. Gib nur heraus, wonach gefragt wird.
+  DEINE DATEN (fiktiv, nur für dieses Spiel):
+${Object.entries(data).map(([k, v]) => `  * ${k}: ${v}`).join('\n') || '  * keine'}
+  Kategorien für info_type: giftcard (Gutschein-Code), creditcard (Kreditkarte), taxid (Steuer-ID), bitcoin (Bitcoin-Wallet/Phrase), bank (Online-Banking), password (E-Mail-Konto), miles (Flugmeilen). Sonst ist info_type immer "none".
 - action "hang_up": wenn trust unter 15 fällt, du beleidigt wirst, oder du merkst, dass es Betrug ist. Verabschiede dich dabei passend zur Figur.
 - Nachrichten in [ECKIGEN KLAMMERN] sind Spielereignisse (z.B. was du auf deinem Bildschirm siehst). Reagiere darauf als deine Figur. Wenn du siehst, dass Geld von deinem Konto abgebucht wird, das du nicht erlaubt hast, wirst du sehr misstrauisch.
 - Sonst action "none".`;

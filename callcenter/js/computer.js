@@ -2,6 +2,7 @@
 // KI-Gespräch, Fernzugriff, Online-Banking, Viren und Scambaiter.
 import { think } from './brain.js';
 import * as voice from './voice.js';
+import { makeCallerData } from './data.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -12,21 +13,8 @@ const VIRUS_FILES = ['GRATIS_RAM_DOWNLOAD.exe', 'oma_rezepte.pdf.exe', 'Bildschi
 const NORMAL_FILES = [['📁', 'Urlaubsfotos Mallorca'], ['📄', 'Einkaufsliste.txt'], ['🗑️', 'Papierkorb'], ['📁', 'Steuer 2019 (nicht öffnen)'], ['🎵', 'Schlager_Hits.mp3'], ['📄', 'Passwörter (geheim).txt']];
 const BAITER_FILES = [['🔴', 'OBS Studio - REC'], ['📄', 'scambait_ideen.txt'], ['💻', 'VirtualBox']];
 const POPUPS = ['DEIN PC HAT 9.999 VIREN 😈', 'Gratis iPhone 47 gewonnen!!!', 'Festplatte wird formatiert ... 3%', 'Heiße Singles in deinem Callcenter', 'Windoof-Lizenz abgelaufen!', 'Bist du ein Roboter? Beweise es!'];
-export const INFO_LABEL = { giftcard: 'Gutschein-Code', taxid: 'Steuer-ID', creditcard: 'Kreditkartennummer' };
-const INFO_APP = { giftcard: 'Gutscheine', taxid: 'Identität', creditcard: 'Kreditkarte' };
-const rnd = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('');
-const LET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-const rl = (n) => Array.from({ length: n }, () => LET[Math.floor(Math.random() * LET.length)]).join('');
-// Fiktive Daten des Anrufers, die er im Gespräch vorlesen kann
-function makeCallerData() {
-  const t = rnd(11), c = '4' + rnd(15);
-  return {
-    giftcard: `${rl(4)}-${rnd(4)}-${rl(4)}`,
-    taxid: `${t.slice(0, 2)} ${t.slice(2, 5)} ${t.slice(5, 8)} ${t.slice(8)}`,
-    creditcard: c.match(/.{4}/g).join(' '),
-  };
-}
-export const normInfo = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+export const INFO_LABEL = { giftcard: 'Gutschein-Code', creditcard: 'Kreditkarten-Daten', taxid: 'Steuer-ID', bitcoin: 'Bitcoin-Daten', bank: 'Online-Banking-Daten', password: 'E-Mail-Zugang', miles: 'Flugmeilen-Daten' };
+const INFO_APP = { giftcard: 'Gutscheine', creditcard: 'Kreditkarte', taxid: 'Identität', bitcoin: 'Bitcoin', bank: 'Bank', password: 'Passwort-Wiederherstellung', miles: 'Flugmeilen' };
 
 const MOODS = [[70, 'VERTRAUT', '#36d46a'], [45, 'INTERESSIERT', '#9be15d'], [25, 'MISSTRAUISCH', '#ffb02e'], [0, 'WÜTEND', '#ff4d4d']];
 
@@ -49,10 +37,29 @@ function wallpaper(kind) {
     g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(1100, 560, 70, 0, 7); g.fill();
     ridge(600, 120, '#3a2a4a', 0.4);
     g.fillStyle = grad([[0.66, '#4a3a6a'], [1, '#121a33']]); g.fillRect(0, 640, 1600, 260);
-  } else {                    // Wüste
+  } else if (kind === 2) {    // Wüste
     g.fillStyle = grad([[0, '#f0b26a'], [0.6, '#fbe0b0']]); g.fillRect(0, 0, 1600, 900);
     ridge(560, 110, '#c97b45', 0.8); ridge(640, 80, '#a85a2e', 2);
     g.fillStyle = '#7c3f1e'; g.fillRect(0, 760, 1600, 140);
+  } else if (kind === 3) {    // Kaktus vor blauem Himmel
+    g.fillStyle = grad([[0, '#2f6fd6'], [1, '#9fd0ff']]); g.fillRect(0, 0, 1600, 900);
+    g.fillStyle = '#4c8a3a'; g.strokeStyle = '#2f5e22'; g.lineWidth = 8;
+    const arm = (x, y, w, h) => { g.beginPath(); g.roundRect(x, y, w, h, w / 2); g.fill(); g.stroke(); };
+    arm(640, 160, 260, 760); arm(420, 360, 170, 380); arm(420, 640, 300, 120); arm(950, 260, 170, 360); arm(830, 520, 260, 110);
+    g.strokeStyle = '#f3e7a0'; g.lineWidth = 3;
+    for (let i = 0; i < 160; i++) { const x = 440 + Math.random() * 680, y = 180 + Math.random() * 700; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10, y - 12); g.stroke(); }
+  } else if (kind === 4) {    // Salzsee mit Grasbüscheln
+    g.fillStyle = grad([[0, '#8fb8e8'], [0.42, '#e8d4c0'], [0.5, '#c9a27a']]); g.fillRect(0, 0, 1600, 900);
+    ridge(430, 90, '#b48a68', 1.7);
+    g.fillStyle = grad([[0.5, '#5f86b8'], [1, '#2e4f78']]); g.fillRect(0, 470, 1600, 430);
+    for (let i = 0; i < 26; i++) { const x = Math.random() * 1600, y = 520 + Math.random() * 360, s2 = 30 + Math.random() * 50; g.strokeStyle = '#c9a646'; g.lineWidth = 3; for (let k = 0; k < 14; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + (k - 7) * s2 / 9, y - s2 - Math.random() * s2 / 2); g.stroke(); } }
+  } else {                    // Büro-Katze
+    g.fillStyle = grad([[0, '#d9b48a'], [1, '#8a6040']]); g.fillRect(0, 0, 1600, 900);
+    g.fillStyle = '#f2e3cc'; g.beginPath(); g.ellipse(800, 560, 330, 280, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(520, 420); g.lineTo(560, 150); g.lineTo(700, 330); g.fill();
+    g.beginPath(); g.moveTo(1080, 420); g.lineTo(1040, 150); g.lineTo(900, 330); g.fill();
+    g.fillStyle = '#2a1a10'; g.beginPath(); g.ellipse(690, 520, 34, 48, 0, 0, 7); g.ellipse(910, 520, 34, 48, 0, 0, 7); g.fill();
+    g.fillStyle = '#e88a9a'; g.beginPath(); g.moveTo(780, 610); g.lineTo(820, 610); g.lineTo(800, 635); g.fill();
   }
   return c.toDataURL('image/jpeg', 0.85);
 }
@@ -68,6 +75,9 @@ export function drawFace(canvas, look = {}, trust = 50, round = false) {
   g.lineWidth = 4; g.strokeStyle = '#1b1410'; g.lineJoin = 'round';
   // Schultern
   g.fillStyle = '#e8e8ee'; g.beginPath(); g.ellipse(0, 92, 70, 40, 0, Math.PI, 0); g.fill(); g.stroke();
+  // Hasenohren / Vampir-Umhang
+  if (look.style === 'bunny') { g.fillStyle = look.skin; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(sx * 22, -70, 13, 42, sx * 0.15, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#e8908a'; g.beginPath(); g.ellipse(sx * 22, -68, 6, 30, sx * 0.15, 0, 7); g.fill(); g.fillStyle = look.skin; } }
+  if (look.style === 'vampire') { g.fillStyle = '#7a0f1a'; g.beginPath(); g.moveTo(-70, 100); g.lineTo(-58, 20); g.lineTo(0, 60); g.lineTo(58, 20); g.lineTo(70, 100); g.fill(); g.stroke(); }
   // Haare hinten
   g.fillStyle = look.hair || '#4a3426';
   if (look.style === 'long') { g.beginPath(); g.ellipse(0, 10, 62, 74, 0, 0, 7); g.fill(); g.stroke(); }
@@ -77,7 +87,10 @@ export function drawFace(canvas, look = {}, trust = 50, round = false) {
   g.beginPath(); g.ellipse(0, 0, 50, 58, 0, 0, 7); g.fill(); g.stroke();
   // Haare vorne
   g.fillStyle = look.hair || '#4a3426';
-  if (look.style !== 'bald') {
+  if (look.style === 'bunny' || look.style === 'astronaut') { /* keine Haare */ }
+  else if (look.style === 'vampire') { g.beginPath(); g.moveTo(-50, -10); g.quadraticCurveTo(-50, -62, 0, -60); g.quadraticCurveTo(50, -62, 50, -10); g.lineTo(30, -36); g.lineTo(0, -18); g.lineTo(-30, -36); g.closePath(); g.fill(); g.stroke(); }
+  else if (look.style === 'cap') { g.fillStyle = '#d23a2a'; g.beginPath(); g.ellipse(0, -34, 52, 30, 0, Math.PI, 0); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.fillRect(-20, -58, 40, 18); g.strokeRect(-20, -58, 40, 18); g.fillStyle = '#d23a2a'; g.beginPath(); g.ellipse(-30, -32, 40, 10, -0.15, 0, 7); g.fill(); g.stroke(); }
+  else if (look.style !== 'bald') {
     g.beginPath(); g.ellipse(0, -36, 50, 26, 0, Math.PI, 0); g.lineTo(50, -30); g.quadraticCurveTo(0, -48, -50, -30); g.fill(); g.stroke();
   } else { g.beginPath(); g.arc(-50, -6, 10, 0, 7); g.arc(50, -6, 10, 0, 7); g.fill(); }
   // Augen + Augenbrauen nach Stimmung
@@ -96,6 +109,8 @@ export function drawFace(canvas, look = {}, trust = 50, round = false) {
   else if (angry) { g.moveTo(-16, 36); g.quadraticCurveTo(0, 24, 16, 36); }
   else { g.moveTo(-14, 32); g.lineTo(14, 31); }
   g.stroke();
+  if (look.style === 'vampire') { g.fillStyle = '#fff'; for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(sx * 8, 30); g.lineTo(sx * 12, 42); g.lineTo(sx * 16, 30); g.fill(); } }
+  if (look.style === 'astronaut') { g.lineWidth = 6; g.strokeStyle = '#f4f6fa'; g.beginPath(); g.arc(0, 2, 66, 0, 7); g.stroke(); g.lineWidth = 3; g.strokeStyle = '#1b1410'; g.beginPath(); g.arc(0, 2, 70, 0, 7); g.stroke(); g.fillStyle = 'rgba(160,220,255,.18)'; g.beginPath(); g.arc(0, 2, 63, 0, 7); g.fill(); }
   g.restore();
 }
 
@@ -129,6 +144,8 @@ export class Computer {
     $('#tb-desk').addEventListener('click', () => { this.el.querySelectorAll('.win').forEach(w => (w.hidden = true)); this.renderTaskbar(); });
     this.el.querySelectorAll('.win').forEach(w => this.bindWin(w));
     $('#in-accept').addEventListener('click', () => this.acceptCall());
+    $('#ph-pick').addEventListener('click', () => this.acceptCall());
+    $('#ph-decline').addEventListener('click', () => this.declineCall());
     $('#in-decline').addEventListener('click', () => this.declineCall());
     $('#ph-hangup').addEventListener('click', () => this.endCall('Du hast aufgelegt.'));
     const input = $('#ph-text');
@@ -232,6 +249,7 @@ export class Computer {
       Object.assign(w.style, { width: W + 'px', height: H + 'px', left: Math.max(10, Math.min(innerWidth - W - 10, 180 + n * 28)) + 'px', top: Math.max(10, Math.min(innerHeight - H - 56, 30 + n * 24)) + 'px' });
     }
     w.hidden = false;
+    w.dispatchEvent(new Event('ccc-open'));
     this.focus(w);
     this.renderTaskbar();
   }
@@ -255,10 +273,12 @@ export class Computer {
     if (kind === 'bg') { this.wpIndex = (this.wpIndex + 1) % 3; this.setWallpaper(); return; }
     this.game.toast('Diese App ist gerade nicht verfügbar.');
   }
-  setWallpaper() {
+  wallpaperUrl(i) {
     this.wallpapers ||= [];
-    this.wallpapers[this.wpIndex] ||= wallpaper(this.wpIndex);
-    this.el.style.backgroundImage = `url(${this.wallpapers[this.wpIndex]})`;
+    return (this.wallpapers[i] ||= wallpaper(i));
+  }
+  setWallpaper() {
+    this.el.style.backgroundImage = `url(${this.wallpaperUrl(this.wpIndex)})`;
   }
 
   open(desk) {
@@ -311,9 +331,10 @@ export class Computer {
   ring(call) {
     this.call = { ...call, state: 'ringing', history: [], trust: null, installed: false, codeGiven: false, connected: false,
       bankLoggedIn: false, blackout: false, balance: call.persona.money, stolen: 0, thinking: false, ringStart: performance.now(),
-      data: makeCallerData(), revealed: {}, redeemed: {} };
+      data: makeCallerData(call.persona), revealed: {}, redeemed: {} };
     this.files = this.makeDesktopFiles(call.persona);
     drawFace($('#in-face'), call.persona.look, 50, true);
+    this.game.apps?.newCall();
     this.render();
   }
 
@@ -324,6 +345,7 @@ export class Computer {
     voice.stopSpeaking();
     $('#ph-log').innerHTML = '';
     this.log('sys', `Verbunden mit ${c.number}`);
+    if (this.game.apps?.owned.has('recorder')) this.notify('🎬', 'Automatische Aufnahme gestartet');
     this.openWin('phone');
     this.render();
     if (!this.mobile) setTimeout(() => $('#ph-text').focus(), 50);
@@ -349,6 +371,9 @@ export class Computer {
     const c = this.call;
     if (!c || c.state !== 'active') return;
     this.log('me', text);
+    const cap = $('#cam-caption');
+    cap.textContent = text.length > 60 ? '…' + text.slice(-58) : text;
+    clearTimeout(this.capT); this.capT = setTimeout(() => (cap.textContent = ''), 3500);
     if (text.length > 12 && Math.random() < 0.5) this.game.addQuote(this.game.me?.name || 'Du', text.slice(0, 120));
     c.history.push({ role: 'user', content: `Mitarbeiter: ${text}` });
     this.game.net.send('bubble', { desk: this.desk?.index, text: '🎧 ' + text.slice(0, 60) });
@@ -368,6 +393,7 @@ export class Computer {
     if (c.thinking) { c.pending = true; return; }
     c.thinking = true;
     $('#ph-typing').textContent = `${c.persona.name} denkt nach ...`;
+    $('#ph-name').textContent = 'NACHRICHT GESENDET – WARTET';
     const res = await think({ mode: 'caller', persona: c.persona, scam: c.scam, remoteCode: c.code, data: c.data, history: c.history });
     if (this.call !== c) return;
     c.thinking = false;
@@ -375,6 +401,7 @@ export class Computer {
     if (c.state !== 'active') return;
     if (res.error && !c.warned) { c.warned = true; this.log('sys', 'KI nicht erreichbar, Offline-Modus: ' + res.error); }
     const trust = Math.max(0, Math.min(100, Number(res.trust) || 0));
+    c.delta = c.trust == null ? 0 : trust - c.trust;
     c.trust = trust;
     c.history.push({ role: 'assistant', content: res.say, trust, action: res.action });
     this.log('them', res.say);
@@ -391,7 +418,7 @@ export class Computer {
       case 'give_info':
         if (INFO_LABEL[infoType]) {
           c.revealed[infoType] = true;
-          this.log('sys', `📝 ${INFO_LABEL[infoType]} erhalten: in der App "${INFO_APP[infoType]}" eingeben!`);
+          this.log('sys', `📝 ${INFO_LABEL[infoType]} erhalten: in der App "${INFO_APP[infoType]}" eingeben (falls freigeschaltet)!`);
           this.game.apps?.highlight(infoType);
         }
         break;
@@ -422,6 +449,7 @@ export class Computer {
     c.connected = false;
     this.stopTalk();
     this.log('sys', `📴 ${reason} Erbeutet: ${euro(c.stolen)}`);
+    $('#ph-ended').hidden = false;
     this.render();
     this.game.callFinished(c);
     setTimeout(() => { if (this.call === c) { this.call = null; this.render(); } }, 4000);
@@ -532,13 +560,47 @@ export class Computer {
   infect(hard = false) {
     if (this.game.apps?.owned.has('mwpro')) { this.game.toast('🛡️ Malwarebits Pro hat einen Virus blockiert.'); if (this.call) this.call.connected = false; this.renderRemote(); return; }
     voice.buzz();
-    this.game.toast('🦠 VIRUS! Schließ die Popups!');
     if (this.call) this.call.connected = false;
+    this.virusEffects(hard);
     this.lockedUntil = performance.now() + (hard ? 15000 : 8000);
     const layer = $('#virus-layer');
     const n = hard ? 9 : 5;
     for (let i = 0; i < n; i++) setTimeout(() => this.spawnPopup(layer), i * 350);
     this.renderRemote();
+  }
+
+  // Desktop-Benachrichtigungen unten rechts (wie Windows)
+  notify(icon, text) {
+    const box = $('#notes-tray');
+    const n = document.createElement('div');
+    n.className = 'nt-msg';
+    n.innerHTML = `<span>${icon}</span><div></div><button>✕</button>`;
+    n.querySelector('div').textContent = text;
+    n.querySelector('button').addEventListener('click', () => n.remove());
+    box.appendChild(n);
+    while (box.children.length > 4) box.firstChild.remove();
+    setTimeout(() => n.remove(), 9000);
+  }
+  // Was ein Virus anrichtet: großes VIRUS DETECTED, Glitch, fliegende Symbole, Werbe-Taskleiste, Meldungen
+  virusEffects(hard) {
+    const big = $('#virus-big');
+    big.hidden = false; setTimeout(() => (big.hidden = true), 2200);
+    const msgs = ['Glückwunsch. Klippi ist zurück und erinnert sich an alles.', 'Kritisches Update: Mehr Malware.', 'Festplatte voll. Straßenfeger 9000 wurde installiert.', 'Bild in die Zwischenablage gespeichert. In Discorde einfügen zum Teilen!', 'Die Taskleiste wurde durch endlose Werbung ersetzt.', 'Ihr Mauszeiger wurde an einen Prinzen in Absurdistan verkauft.'];
+    for (let i = 0; i < (hard ? 3 : 2); i++) setTimeout(() => this.notify('🦠', msgs[Math.floor(Math.random() * msgs.length)]), 500 + i * 700);
+    const fx = ['glitch', 'icons', 'ads', 'popups'].sort(() => Math.random() - 0.5).slice(0, hard ? 3 : 2);
+    if (!fx.includes('popups')) fx.push('popups');
+    const until = hard ? 15000 : 9000;
+    if (fx.includes('glitch')) { this.el.classList.add('glitch'); setTimeout(() => this.el.classList.remove('glitch'), until); }
+    if (fx.includes('icons')) {
+      this.el.querySelectorAll('#icons .icon').forEach(ic => { ic.style.transform = `translate(${(Math.random() - 0.5) * 600}px,${(Math.random() - 0.5) * 400}px) rotate(${(Math.random() - 0.5) * 120}deg)`; });
+      setTimeout(() => this.el.querySelectorAll('#icons .icon').forEach(ic => (ic.style.transform = '')), until);
+    }
+    if (fx.includes('ads')) { $('#taskbar').classList.add('ads'); setTimeout(() => $('#taskbar').classList.remove('ads'), until); }
+    if (fx.includes('popups')) {
+      const layer = $('#virus-layer');
+      this.lockedUntil = performance.now() + until;
+      for (let i = 0; i < (hard ? 8 : 4); i++) setTimeout(() => this.spawnPopup(layer), i * 350);
+    }
   }
 
   spawnPopup(layer) {
@@ -570,7 +632,13 @@ export class Computer {
     $('#incoming').hidden = !ringing;
     $('#tb-ring').hidden = !ringing;
     $('#ph-call').hidden = !active;
-    $('#ph-idle').hidden = !!active;
+    $('#ph-ring').hidden = !ringing;
+    if (ringing) { $('#ph-ring-name').textContent = c.persona.name; drawFace($('#ph-ring-face'), c.persona.look, 50); }
+    if (active) $('#ph-ended').hidden = c.state !== 'ended';
+    const d = c?.delta || 0;
+    $('#ph-delta').textContent = d ? (d > 0 ? `+${d}` : `${d}`) : '';
+    $('#ph-delta').className = d > 0 ? 'up' : 'down';
+    $('#ph-idle').hidden = !!c;
     $('#ph-idle-text').innerHTML = this.game.phase === 'work' ? 'Keine aktiven Anrufe.<br>Warte auf den nächsten Anrufer ...' : 'Feierabend.<br>Gerade keine Anrufe.';
     if (ringing) {
       $('#in-name').textContent = c.persona.name;
@@ -584,7 +652,7 @@ export class Computer {
       $('#ph-status').style.color = color;
       $('#ph-trust').style.width = t + '%';
       $('#ph-trust').style.background = color;
-      $('#ph-pct').textContent = (c.trust ?? 0) + '%';
+      $('#ph-pctv').textContent = (c.trust ?? 0) + '%';
       $('#ph-name').textContent = c.persona.name;
       drawFace($('#ph-face'), c.persona.look, t);
       $('#ph-hangup').disabled = c.state === 'ended';

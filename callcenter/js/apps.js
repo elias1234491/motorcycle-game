@@ -1,7 +1,6 @@
 // Alle Zusatz-Apps des PCs wie im Original: Daten-Apps (Gutscheine, Identität, Kreditkarte), Scamazon-Shop,
 // Rainbit-Casino, Meteor Cookie, Paint, Discorde-Teamchat, Zoomy-Meeting, Malwarebits, Ledger, Browser, Bildschirmrekorder.
-import { SCAMS, SCAM_PRICES } from '../config.js';
-import { INFO_LABEL, normInfo } from './computer.js';
+import { GROUPS, norm } from './data.js';
 import * as voice from './voice.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -21,6 +20,12 @@ export const SVG = {
   shield: '<path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5zm-1 13.5l6-6-1.4-1.4-4.6 4.6-2.1-2.1L7.5 12z"/>',
   ledger: '<path d="M5 2h12a2 2 0 012 2v16a2 2 0 01-2 2H5zm3 4v2h8V6zm0 4v2h8v-2zm0 4v2h5v-2z"/>',
   web: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-3a15 15 0 00-1.4-4A8 8 0 0118.9 8zM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.8 1.9-4zM4.3 14a8 8 0 010-4h3.4a16 16 0 000 4zm.8 2h3a15 15 0 001.4 4 8 8 0 01-4.4-4zM8 8H5a8 8 0 014.4-4A15 15 0 008 8zm4 12c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.8-1.9 4zm2.3-6H9.7a14 14 0 010-4h4.6a14 14 0 010 4z"/>',
+  btc: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1.2 4.5v1.3c1.5.2 2.6 1 2.6 2.3 0 .9-.5 1.5-1.3 1.8 1.1.3 1.8 1 1.8 2.1 0 1.6-1.3 2.5-3.1 2.6v1.3h-1v-1.3h-.8v1.3h-1v-1.3H8.3v-1.2h.9c.3 0 .4-.1.4-.4V9c0-.3-.1-.4-.4-.4h-.9V7.4h2.1V6.5h1v.9h.8v-.9zM11 11.5v2.7h1.6c1 0 1.6-.4 1.6-1.4 0-.9-.6-1.3-1.6-1.3zm0-3.1v2.1h1.3c.8 0 1.3-.3 1.3-1s-.5-1.1-1.3-1.1z"/>',
+  bank: '<path d="M12 2l10 5v2H2V7zm-7 9h2v7H5zm4 0h2v7H9zm4 0h2v7h-2zm4 0h2v7h-2zM2 20h20v2H2z"/>',
+  lock: '<path d="M12 2a5 5 0 015 5v3h1a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2h1V7a5 5 0 015-5zm0 2a3 3 0 00-3 3v3h6V7a3 3 0 00-3-3zm0 9a2 2 0 00-1 3.7V19h2v-2.3a2 2 0 00-1-3.7z"/>',
+  plane: '<path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>',
+  person: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a3.5 3.5 0 110 7 3.5 3.5 0 010-7zm0 14a8 8 0 01-6.2-3c.1-2 4.1-3.2 6.2-3.2s6.1 1.1 6.2 3.2A8 8 0 0112 20z"/>',
+  notes: '<path d="M5 3h14v18H5zm3 4v1.5h8V7zm0 4v1.5h8V11zm0 4v1.5h5V15z"/>',
   rec: '<path d="M4 6h11a2 2 0 012 2v2.5l4-3v9l-4-3V16a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2zm4 3a3 3 0 100 6 3 3 0 000-6z"/>',
 };
 
@@ -44,9 +49,22 @@ export const PORTALS = [
   { id: 'p_coin', name: 'Coin-Futures', emoji: '📈', color: '#1d7a35', pay: 2.5, day: 8, line: 'Hebel-Wette auf Keksmasse' },
 ];
 
+// Daten-Apps wie im Original (Gift Card Vault, Credit Card, Bitcoin, Bank, Identity, Password Recovery ...)
+// Freischaltung im Scamazon-Tab "Scams" nach Tagen
+export const DATA_APPS = [
+  { id: 'gift', group: 'giftcard', day: 1, price: 0, owned: true, title: 'Gutscheine', head: 'Gutschein-Tresor', sub: 'Löse den Gutschein-Code eines Anrufers ein und prüfe ihn.', color: '#f08a1c', svg: 'gift', pay: 150 },
+  { id: 'ccard', group: 'creditcard', day: 1, price: 0, owned: true, title: 'Kreditkarte', head: 'Karten-Prüfer', sub: 'Prüfe Kartennummer, Prüfziffer und Ablaufdatum eines Anrufers.', color: '#1f8a8a', svg: 'card', pay: 300 },
+  { id: 'btc', group: 'bitcoin', day: 1, price: 3000, title: 'Bitcoin', head: 'Satoshi-Tresor-Wiederherstellung', sub: 'Stelle den Zugang zur Bitcoin-Wallet eines Anrufers mit seinen Wiederherstellungsdaten her.', color: '#f7931a', svg: 'btc', pay: 750 },
+  { id: 'ident', group: 'taxid', day: 2, price: 0, title: 'Identität', head: 'Identitäts-Klau-O-Mat', sub: 'Prüfe die Steuer-ID eines Anrufers gegen das Register.', color: '#b3261e', svg: 'id', pay: 250 },
+  { id: 'bank', group: 'bank', day: 2, price: 1500, title: 'Bank', head: 'Online-Banking-Zugang', sub: 'Melde dich mit den Online-Banking-Daten des Anrufers an.', color: '#1d4fa3', svg: 'bank', pay: 560 },
+  { id: 'pwrec', group: 'password', day: 3, price: 800, title: 'Passwort-Wiederherstellung', head: 'Konto-Retter', sub: 'Setze das E-Mail-Passwort eines Anrufers mit seinem Reset-Code zurück.', color: '#c9a227', svg: 'lock', pay: 350 },
+  { id: 'miles', group: 'miles', day: 3, price: 1200, title: 'Flugmeilen', head: 'Meilen-Umbucher', sub: 'Buche die Flugmeilen eines Anrufers auf dein Konto um.', color: '#4a7fe0', svg: 'plane', pay: 500 },
+  { id: 'custinfo', day: 5, price: 0, title: 'Kundeninfo', head: 'Kundeninfo', sub: 'Ruft ein Live-Profil des Kunden ab, der gerade am Telefon ist.', color: '#5b34a8', svg: 'person', util: true },
+];
+
 // Shop-Sortiment (Preise vom PERSÖNLICHEN Konto, wie im Original)
 const SHOP = {
-  'Maschen': SCAMS.filter(s => SCAM_PRICES[s.id]).map(s => ({ id: 'scam:' + s.id, name: s.name, emoji: s.icon, desc: `Sofort freischalten (sonst ab Tag ${s.day}).`, price: SCAM_PRICES[s.id], color: '#2d7ff9' })),
+  'Scams': [],
   'Business-Apps': [
     { id: 'mwpro', name: 'Malwarebits Pro', emoji: '🛡️', desc: 'Echtzeitschutz: blockt Viren automatisch.', price: 1000, color: '#1f9d55' },
     { id: 'ledger', name: 'Ledger', emoji: '📒', desc: 'Kontobuch für persönliche und Team-Einnahmen.', price: 0, color: '#2f6fd6' },
@@ -75,12 +93,15 @@ export class Apps {
   constructor(game, pc) {
     this.game = game;
     this.pc = pc;
-    this.owned = new Set(['paint', 'ledger', 'zoomy', 'discorde']);
+    this.owned = new Set(['paint', 'ledger', 'zoomy', 'discorde', 'notes', ...DATA_APPS.filter(a => a.owned).map(a => a.id)]);
     this.ledger = [];
     this.chat = [];
     this.cookies = { n: 0, life: 0, click: 1, units: [0, 0, 0, 0], tick: 0 };
     this.win = {};
-    this.buildInfoApps();
+    this.buildDataApps();
+    this.buildCustomerInfo();
+    this.buildNotes();
+    this.buildBackgrounds();
     this.buildPortals();
     this.buildShop();
     this.buildBrowser();
@@ -119,55 +140,101 @@ export class Apps {
     }
   }
   resetRun() {
-    this.owned = new Set(['paint', 'ledger', 'zoomy', 'discorde']);
+    this.owned = new Set(['paint', 'ledger', 'zoomy', 'discorde', 'notes', ...DATA_APPS.filter(a => a.owned).map(a => a.id)]);
     this.ledger = [];
     this.refreshIcons();
     this.renderShop();
   }
   highlight(type) {
-    const id = { giftcard: 'gift', taxid: 'ident', creditcard: 'ccard' }[type];
-    if (id) this.pc.openWin(id);
+    const app = DATA_APPS.find(a => a.group === type);
+    if (app && this.owned.has(app.id)) this.pc.openWin(app.id);
+    else if (app) this.game.toast(`Für diese Daten brauchst du die App "${app.title}" (Scamazon → Scams).`);
   }
 
-  // ---------- Gutscheine / Identität / Kreditkarte ----------
-  buildInfoApps() {
-    const defs = [
-      ['gift', 'giftcard', 'Gutscheine', '#f08a1c', SVG.gift, 'Gutschein-Einlöser', 'Löse Gutscheinkarten ein, die der Anrufer gekauft hat.', 'Gutschein-Code (XXXX-0000-XXXX)', 400],
-      ['ident', 'taxid', 'Identität', '#b3261e', SVG.id, 'Identitäts-Klau-O-Mat', 'Prüfe die Steuer-ID eines Anrufers gegen das Register.', 'Steuer-ID (00 000 000 000)', 250],
-      ['ccard', 'creditcard', 'Kreditkarte', '#1f8a8a', SVG.card, 'Karten-Kassierer', 'Buche über die Kreditkarte des Anrufers ab.', 'Kartennummer (0000 0000 0000 0000)', 600],
-    ];
-    for (const [id, type, title, color, svg, head, sub, label, base] of defs) {
-      const { win, body, icon } = this.pc.addApp({ id, title, color, svg, w: 440, h: 300 });
-      this.win[id] = { win, icon, always: true };
+  // ---------- Daten-Apps (jedes Feld wird einzeln geprüft, wie im Original) ----------
+  buildDataApps() {
+    for (const a of DATA_APPS.filter(x => !x.util)) {
+      const svg = SVG[a.svg];
+      const { win, body, icon } = this.pc.addApp({ id: a.id, title: a.title, color: a.color, svg, w: 460, h: 120 + GROUPS[a.group].length * 74 });
+      this.win[a.id] = { win, icon };
+      const fields = GROUPS[a.group];
       body.innerHTML = `<div class="ia">
-        <div class="ia-head"><span class="ia-logo" style="background:${color}"><svg viewBox="0 0 24 24">${svg}</svg></span><div><b>${head}</b><small>${sub}</small></div><span class="ia-flag">🇩🇪</span></div>
-        <div class="ia-box"><div class="ia-note">Gib die Daten ein für <b>bis zu ${euro(base)}</b>.</div>
-          <label>${label}</label><input class="ia-in" autocomplete="off"><div class="ia-row"><span class="ia-msg"></span><button class="ia-go">Prüfen</button></div></div></div>`;
-      const input = body.querySelector('.ia-in'), msg = body.querySelector('.ia-msg');
-      input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); });
+        <div class="ia-head"><span class="ia-logo" style="background:${a.color}"><svg viewBox="0 0 24 24">${svg}</svg></span><div><b>${a.head}</b><small>${a.sub}</small></div><span class="ia-flag">🇩🇪</span></div>
+        <div class="ia-box"><div class="ia-note">Gib die Daten ein für <b>${euro(a.pay)}</b>.</div>
+          ${fields.map((f, i) => `<label>${esc(f)}</label><div class="ia-f"><input class="ia-in" data-i="${i}" autocomplete="off"><span class="ia-ok" hidden>Verifiziert ✓</span></div>`).join('')}
+          <div class="ia-row"><span class="ia-msg"></span><button class="ia-go">Prüfen</button></div></div></div>`;
+      const inputs = [...body.querySelectorAll('.ia-in')], msg = body.querySelector('.ia-msg');
+      const reset = () => { inputs.forEach(i => { i.value = ''; i.disabled = false; i.nextElementSibling.hidden = true; }); msg.textContent = ''; msg.className = 'ia-msg'; };
+      win.addEventListener('ccc-call', reset);
       const go = () => {
         const c = this.pc.call;
         msg.className = 'ia-msg';
         if (!c || c.state === 'ringing') { msg.textContent = 'Kein Anrufer in der Leitung.'; return; }
-        if (c.redeemed[type]) { msg.textContent = 'Schon eingelöst.'; return; }
-        if (normInfo(input.value) !== normInfo(c.data[type])) { msg.textContent = '❌ Ungültig. Lass es dir nochmal vorlesen.'; voice.buzz(); return; }
-        c.redeemed[type] = true;
-        input.value = '';
-        if (c.persona.scambaiter) {
-          msg.textContent = '❌ Fake-Daten! Das war ein Scambaiter.';
-          this.game.scambaited(c.persona);
-          return;
-        }
-        const amount = Math.round(base * (0.7 + Math.min(1.5, c.persona.money / 20000)) / 10) * 10;
+        if (c.redeemed[a.group]) { msg.textContent = 'Bei diesem Anrufer schon erledigt.'; return; }
+        let ok = 0;
+        inputs.forEach((inp, i) => {
+          const good = norm(inp.value) && norm(inp.value) === norm(c.data[fields[i]]);
+          inp.nextElementSibling.hidden = !good;
+          inp.disabled = good;
+          if (good) ok++;
+        });
+        if (ok < fields.length) { msg.textContent = `${ok}/${fields.length} verifiziert. Frag nach dem Rest.`; if (!ok) voice.buzz(); return; }
+        c.redeemed[a.group] = true;
+        if (c.persona.scambaiter) { msg.textContent = '❌ Fake-Daten! Das war ein Scambaiter.'; this.game.scambaited(c.persona); return; }
+        const amount = Math.round(a.pay * (0.75 + Math.min(1.25, c.persona.money / 25000)) / 10) * 10;
         c.stolen += amount;
-        this.game.addEarnings(amount, `${INFO_LABEL[type]} von ${c.persona.name}: +${euro(amount)}`);
+        this.game.addEarnings(amount, `${a.title}: ${c.persona.name} +${euro(amount)}`);
         voice.cash();
         msg.className = 'ia-msg ok';
-        msg.textContent = `✔ Verifiziert: ${euro(amount)} verdient.`;
+        msg.textContent = `Masche abgeschlossen: ${euro(amount)} verdient (${ok}/${fields.length} verifiziert).`;
         this.pc.render();
       };
+      inputs.forEach(inp => inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); }));
       body.querySelector('.ia-go').addEventListener('click', go);
     }
+  }
+  // Neuer Anruf: Formulare leeren
+  newCall() {
+    document.querySelectorAll('.win').forEach(w => w.dispatchEvent(new Event('ccc-call')));
+    this.renderCustomerInfo();
+  }
+
+  // ---------- Kundeninfo (Live-Profil des Anrufers) ----------
+  buildCustomerInfo() {
+    const { win, body, icon } = this.pc.addApp({ id: 'custinfo', title: 'Kundeninfo', color: '#5b34a8', svg: SVG.person, w: 440, h: 520 });
+    this.win.custinfo = { win, icon };
+    this.ciBody = body;
+    win.addEventListener('ccc-open', () => this.renderCustomerInfo());
+    this.renderCustomerInfo();
+  }
+  renderCustomerInfo() {
+    const c = this.pc.call, b = this.ciBody;
+    if (!b) return;
+    if (!c) { b.innerHTML = `<div class="ci"><h2>Kundeninfo</h2><div class="ci-empty">Kein Kunde in der Leitung.</div></div>`; return; }
+    const p = c.persona;
+    const ini = p.name.replace(/"[^"]*"/g, '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const row = (k, v) => v ? `<div class="ci-box"><small>${k}</small><div>${esc(v)}</div></div>` : '';
+    b.innerHTML = `<div class="ci"><div class="ci-top"><h2>Kundeninfo</h2><span class="ci-live">LIVE-SYNC</span></div>
+      <div class="ci-box ci-who"><span class="ci-av">${esc(ini)}</span><div><b>${esc(p.name)}</b><small>${esc(p.gender || '')} · ${p.age} Jahre · ${esc(p.city)}</small></div></div>
+      ${row('WOHNADRESSE', p.address)}${row('BERUF', p.occupation)}${row('BEZIEHUNG', p.relationship)}${row('HAUSTIER', p.pet)}${row('GESPRÄCHS-HEBEL', p.leverage)}</div>`;
+  }
+
+  // ---------- Notizen ----------
+  buildNotes() {
+    const { win, body, icon } = this.pc.addApp({ id: 'notes', title: 'Notizen', color: '#7b55c9', svg: SVG.notes, w: 380, h: 380 });
+    this.win.notes = { win, icon };
+    body.innerHTML = `<textarea class="nt" placeholder="Notizen: Namen, Codes, Ausreden ..."></textarea>`;
+    body.querySelector('textarea').addEventListener('keydown', (e) => e.stopPropagation());
+  }
+
+  // ---------- Hintergründe ----------
+  buildBackgrounds() {
+    const { win, body, icon } = this.pc.addApp({ id: 'bgs', title: 'Hintergründe', color: '#7b55c9', svg: '<path d="M4 4h16v16H4zm2 2v9l4-4 3 3 2-2 3 3V6zm9 1.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>', w: 520, h: 360 });
+    this.win.bgs = { win, icon, always: true };
+    const names = ['Bergsee', 'Sonnenuntergang', 'Wüste', 'Kaktus', 'Salzsee', 'Büro-Katze'];
+    body.innerHTML = `<div class="bg-grid">${names.map((n, i) => `<button class="bg-t" data-i="${i}"><span></span>${n}</button>`).join('')}</div>`;
+    win.addEventListener('ccc-open', () => body.querySelectorAll('.bg-t span').forEach((sp, i) => { sp.style.backgroundImage = `url(${this.pc.wallpaperUrl(i)})`; }));
+    body.querySelectorAll('.bg-t').forEach(b => b.addEventListener('click', () => { this.pc.wpIndex = +b.dataset.i; this.pc.setWallpaper(); }));
   }
 
   // ---------- Bezahl-Portale (Kreditkarte belasten) ----------
@@ -187,7 +254,7 @@ export class Apps {
         const c = this.pc.call;
         msg.className = 'po-msg';
         if (!c || c.state === 'ringing') { msg.textContent = 'Kein Kunde in der Leitung.'; return; }
-        if (normInfo(input.value) !== normInfo(c.data.creditcard)) { msg.textContent = '❌ Karte abgelehnt. Nummer stimmt nicht.'; voice.buzz(); return; }
+        if (norm(input.value) !== norm(c.data['Kreditkartennummer'])) { msg.textContent = '❌ Karte abgelehnt. Nummer stimmt nicht.'; voice.buzz(); return; }
         c.charges ||= [];
         if (c.charges.includes(p.id)) { msg.textContent = 'Diese Karte wurde hier schon belastet.'; return; }
         if (c.charges.length >= 3) { msg.textContent = '❌ Karte gesperrt: Die Bank hat Verdacht geschöpft.'; return; }
@@ -211,11 +278,12 @@ export class Apps {
   buildShop() {
     const { win, body, icon } = this.pc.addApp({ id: 'shop', title: 'Scamazon', color: '#f08a1c', svg: SVG.shop, w: 760, h: 520, pinned: true });
     this.win.shop = { win, icon, always: true };
-    this.shopTab = 'Maschen';
+    this.shopTab = 'Scams';
     body.innerHTML = `<div class="sz"><div class="sz-top"><span class="sz-logo"><b>$</b> SCAMAZON <i>MARKT</i></span><span class="sz-bal"></span></div>
       <div class="sz-tabs">${Object.keys(SHOP).map(t => `<button data-t="${t}">${t}</button>`).join('')}</div><div class="sz-grid"></div></div>`;
     body.querySelectorAll('.sz-tabs button').forEach(b => b.addEventListener('click', () => { this.shopTab = b.dataset.t; this.renderShop(); }));
     this.shopBody = body;
+    win.addEventListener('ccc-open', () => this.renderShop());
     this.renderShop();
   }
   renderShop() {
@@ -225,6 +293,24 @@ export class Apps {
     b.querySelectorAll('.sz-tabs button').forEach(x => x.classList.toggle('on', x.dataset.t === this.shopTab));
     const grid = b.querySelector('.sz-grid');
     grid.innerHTML = '';
+    grid.classList.toggle('days', this.shopTab === 'Scams');
+    if (this.shopTab === 'Scams') {
+      const days = [...new Set(DATA_APPS.map(a => a.day))];
+      for (const d of days) {
+        const open = d <= this.game.day;
+        const row = el(`<div class="sz-day ${open ? '' : 'locked'}"><div class="sz-dl"><small>TAG</small><b>${d}</b><span>${open ? 'VERFÜGBAR' : 'GESPERRT'}</span></div><div class="sz-dc"></div></div>`);
+        for (const a of DATA_APPS.filter(x => x.day === d)) {
+          const owned = this.owned.has(a.id);
+          const can = this.game.personal >= a.price;
+          const card = el(`<div class="sz-card"><div class="sz-ic" style="background:${a.color}"><svg viewBox="0 0 24 24">${SVG[a.svg]}</svg></div><b>${esc(a.title)}</b><p>${esc(a.sub)}</p>
+            <button class="sz-buy ${owned ? 'own' : !open ? 'own' : can ? 'ok' : 'no'}" ${owned || !open ? 'disabled' : ''}>${owned ? 'FREIGESCHALTET' : !open ? `AB TAG ${d}` : `KAUFEN FÜR ${euro(a.price)}`}</button></div>`);
+          card.querySelector('button').addEventListener('click', () => this.buyApp(a));
+          row.querySelector('.sz-dc').appendChild(card);
+        }
+        grid.appendChild(row);
+      }
+      return;
+    }
     for (const it of SHOP[this.shopTab]) {
       const owned = this.isOwned(it);
       const can = this.game.personal >= it.price;
@@ -235,9 +321,20 @@ export class Apps {
       grid.appendChild(card);
     }
   }
+  buyApp(a) {
+    if (this.owned.has(a.id) || a.day > this.game.day) return;
+    if (a.price && !this.spend(a.price, a.title)) { this.renderShop(); return; }
+    voice.cash();
+    this.owned.add(a.id);
+    this.refreshIcons();
+    this.game.toast(`🔓 Neue Masche freigeschaltet: ${a.title}. Das Symbol liegt auf dem Desktop.`);
+    this.pc.openWin(a.id);
+    this.renderShop();
+  }
+  // Gibt es heute etwas Neues zu kaufen? (Ausrufezeichen am Scamazon-Symbol)
+  hasNew() { return DATA_APPS.some(a => a.day <= this.game.day && !this.owned.has(a.id) && this.game.personal >= a.price); }
   isOwned(it) {
     if (it.consumable) return false;
-    if (it.id.startsWith('scam:')) return this.game.unlockedScams.has(it.id.slice(5)) || SCAMS.find(s => 'scam:' + s.id === it.id).day <= this.game.day;
     const portal = PORTALS.find(p => p.id === it.id);
     if (portal) return this.owned.has(it.id) || portal.day <= this.game.day;
     return this.owned.has(it.id) || this.game.inventory?.includes(it.id);
@@ -246,8 +343,7 @@ export class Apps {
     if (this.isOwned(it)) return;
     if (it.price && !this.spend(it.price, it.name)) { this.renderShop(); return; }
     voice.cash();
-    if (it.id.startsWith('scam:')) { this.game.unlockedScams.add(it.id.slice(5)); this.game.toast(`🔓 Masche freigeschaltet: ${it.emoji} ${it.name}`); }
-    else if (it.id.startsWith('strike_')) this.game.airstrike(it.id === 'strike_rival' ? 'rival' : 'self', true);
+    if (it.id.startsWith('strike_')) this.game.airstrike(it.id === 'strike_rival' ? 'rival' : 'self', true);
     else if (SHOP['Physische Waren'].includes(it)) { this.game.giveItem(it.id); this.game.toast(`📦 ${it.name} wurde an deinen Platz geliefert. Steh auf und benutze es (Q wechselt, Klick benutzt).`); }
     else { this.owned.add(it.id); this.refreshIcons(); this.game.toast(`${it.emoji} ${it.name} installiert. Das Symbol liegt auf dem Desktop.`); this.pc.openWin(it.id); }
     this.renderShop();

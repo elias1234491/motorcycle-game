@@ -24,7 +24,13 @@
         "glasses": true,
         "beard": false,
         "bg": "#4f9a8f"
-      }
+      },
+      "gender": "weiblich",
+      "address": "Kurpark-Allee 12, 32545 Bad Oeynhausen",
+      "occupation": "Rentnerin, früher Grundschullehrerin",
+      "relationship": "verwitwet, 3 Enkel",
+      "pet": "Kater Mr. Wuschel",
+      "leverage": "Liebt es, über ihre Enkel und Mr. Wuschel zu reden. Strickt Socken für die ganze Familie."
     },
     {
       "id": "horst",
@@ -49,7 +55,13 @@
         "glasses": false,
         "beard": true,
         "bg": "#5b7fa8"
-      }
+      },
+      "gender": "männlich",
+      "address": "Zechenstraße 4, 45879 Gelsenkirchen",
+      "occupation": "Frührentner, Ex-Bergmann",
+      "relationship": "geschieden",
+      "pet": "Wellensittich Schalke",
+      "leverage": "Fan von Schalke 04, misstraut Banken, hat Angst vor Hackern aus dem Fernsehen."
     },
     {
       "id": "chantal",
@@ -74,7 +86,13 @@
         "glasses": false,
         "beard": false,
         "bg": "#b65f9a"
-      }
+      },
+      "gender": "weiblich",
+      "address": "Spremberger Str. 88, 03046 Cottbus",
+      "occupation": "Nageldesignerin und Influencerin (412 Follower)",
+      "relationship": "Freund Jason-Kevin",
+      "pet": "Chihuahua Prada",
+      "leverage": "Will unbedingt viral gehen. Liebt alles mit Glitzer und Gewinnspielen."
     },
     {
       "id": "pfennig",
@@ -99,7 +117,13 @@
         "glasses": true,
         "beard": false,
         "bg": "#6a7fb0"
-      }
+      },
+      "gender": "männlich",
+      "address": "Killesberghöhe 1, 70192 Stuttgart",
+      "occupation": "Zahnarzt",
+      "relationship": "verheiratet mit Dr. Ursula Pfennig",
+      "pet": "Golden Retriever Amadeus",
+      "leverage": "Hält sich für ein IT-Genie, fährt Porsche, erwähnt ständig seinen Doktortitel."
     },
     {
       "id": "bernd",
@@ -124,7 +148,13 @@
         "glasses": false,
         "beard": true,
         "bg": "#c9883a"
-      }
+      },
+      "gender": "männlich",
+      "address": "Am Sparrenberg 7, 33602 Bielefeld",
+      "occupation": "Lagerist, Kassenwart im Kegelverein",
+      "relationship": "verheiratet mit Moni",
+      "pet": "Dackel Rudi",
+      "leverage": "Liebt Wortwitze und den Kegelverein \"Alle Neune\". Wird bei Druck stur."
     },
     {
       "id": "kevin",
@@ -149,7 +179,13 @@
         "glasses": true,
         "beard": false,
         "bg": "#4f9a8f"
-      }
+      },
+      "gender": "männlich",
+      "address": "Musterweg 1, 12345 Irgendwo",
+      "occupation": "angeblich Rentner",
+      "relationship": "angeblich verheiratet",
+      "pet": "angeblich ein Hund namens \"Abonniert\"",
+      "leverage": "Fragt auffällig oft nach deinem Namen. Im Hintergrund klackert eine Tastatur."
     },
     {
       "id": "lisa",
@@ -174,6 +210,129 @@
         "glasses": false,
         "beard": false,
         "bg": "#8a6bb0"
+      },
+      "gender": "weiblich",
+      "address": "Karl-Liebknecht-Str. 30, 04107 Leipzig",
+      "occupation": "angeblich Hausfrau",
+      "relationship": "zwei Kinder (angeblich)",
+      "pet": "Katze Stream",
+      "leverage": "Will ständig wissen, wo euer Callcenter sitzt."
+    },
+    {
+      "id": "loopy",
+      "name": "Loopy \"Doop\" Loops",
+      "age": 34,
+      "emoji": "🐰",
+      "city": "Knuspersdorf",
+      "gender": "männlich",
+      "address": "Müslischale 3, 99999 Knuspersdorf",
+      "occupation": "Müsli-Maskottchen",
+      "relationship": "verheiratet mit Casey",
+      "pet": "Hund Milo",
+      "leverage": "Sagt ständig \"IM LOOPY FOR DOOP LOOPS!\". Redet gern über Milo, der seinen Schwanz jagt.",
+      "personality": "Hyperaktives Müsli-Maskottchen (ein blauer Hase), redet nur in Werbesprüchen und Großbuchstaben-Ausrufen. Total leichtgläubig, solange es um Müsli oder Spaß geht. Wird misstrauisch, wenn jemand Müsli beleidigt.",
+      "gullibility": 0.85,
+      "techSkill": 0.2,
+      "money": 7500,
+      "bank": "Knusper-Sparkasse",
+      "voice": {
+        "pitch": 1.6,
+        "rate": 1.25
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#4fb3e6",
+        "hair": "#4fb3e6",
+        "style": "bunny",
+        "bg": "#5aa89a"
+      }
+    },
+    {
+      "id": "nico",
+      "name": "Graf Nicolae \"Nico\" Dracomir",
+      "age": 612,
+      "emoji": "🧛",
+      "city": "Transsilvanien (Zweitwohnsitz Wuppertal)",
+      "gender": "männlich",
+      "address": "Schlossberg 1, 42103 Wuppertal",
+      "occupation": "Vampir, Immobilienbesitzer",
+      "relationship": "seit 400 Jahren Single",
+      "pet": "Fledermaus Klaus",
+      "leverage": "Hasst Knoblauch und Sonnenlicht, ruft nur nachts an, versteht keine moderne Technik.",
+      "personality": "Uralter, theatralischer Vampir, spricht altmodisch und dramatisch (\"Sterblicher!\"). Versteht Computer überhaupt nicht und ist fasziniert davon. Sehr reich. Wird wütend bei Knoblauch- oder Sonnen-Witzen.",
+      "gullibility": 0.6,
+      "techSkill": 0.05,
+      "money": 52000,
+      "bank": "Blutbank Transsilvanien",
+      "voice": {
+        "pitch": 0.6,
+        "rate": 0.85
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#e9e3f0",
+        "hair": "#141414",
+        "style": "vampire",
+        "bg": "#6b4a8a"
+      }
+    },
+    {
+      "id": "orbit",
+      "name": "Kommandant Miles \"Orbit\" Vega",
+      "age": 47,
+      "emoji": "👨‍🚀",
+      "city": "Internationale Raumstation",
+      "gender": "männlich",
+      "address": "ISS, Modul 4, Erdumlaufbahn",
+      "occupation": "Astronaut",
+      "relationship": "verheiratet, Frau ist auf der Erde",
+      "pet": "Goldfisch in Schwerelosigkeit",
+      "leverage": "Ruft von der Raumstation an, die Verbindung hat Verzögerung. Alles muss \"nach Vorschrift\" sein.",
+      "personality": "Pedantischer Astronaut, der von der Raumstation anruft. Will alles nach Checkliste, sagt \"Roger\" und \"Over\". Vertraut nur offiziell klingenden Abläufen.",
+      "gullibility": 0.5,
+      "techSkill": 0.7,
+      "money": 24000,
+      "bank": "Galaktische Raiffeisenbank",
+      "voice": {
+        "pitch": 0.95,
+        "rate": 1.0
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#7de0c8",
+        "hair": "#ffffff",
+        "style": "astronaut",
+        "bg": "#4f9a8f"
+      }
+    },
+    {
+      "id": "buck",
+      "name": "Hannes \"Bulle\" Hartmann",
+      "age": 58,
+      "emoji": "🤠",
+      "city": "Kleinkleckersdorf",
+      "gender": "männlich",
+      "address": "Hof Hartmann 2, 27777 Kleinkleckersdorf",
+      "occupation": "Landwirt und Truckfahrer",
+      "relationship": "verheiratet mit Erna",
+      "pet": "Kuh Berta",
+      "leverage": "Liebt seinen Trecker, flucht viel, mag keine Schmeicheleien.",
+      "personality": "Grobschlächtiger Landwirt mit Basecap, flucht (harmlos) viel, hasst Schmeichelei und Gelaber. Reagiert gut auf direkte, bodenständige Ansagen. Hat Bargeld unter der Matratze und ein bisschen auf der Bank.",
+      "gullibility": 0.45,
+      "techSkill": 0.15,
+      "money": 11000,
+      "bank": "Landbank Kleinkleckersdorf",
+      "voice": {
+        "pitch": 0.75,
+        "rate": 0.95
+      },
+      "scambaiter": false,
+      "look": {
+        "skin": "#e8b48f",
+        "hair": "#5a3a22",
+        "style": "cap",
+        "beard": true,
+        "bg": "#5b7fa8"
       }
     }
   ]
