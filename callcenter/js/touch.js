@@ -23,10 +23,10 @@ export function setupTouch(game) {
   // Joystick
   const stick = root.querySelector('#t-stick'), knob = root.querySelector('#t-knob');
   let sid = null, cx = 0, cy = 0;
-  const R = 50;
+  let R = 50;
   stick.addEventListener('pointerdown', (e) => {
     sid = e.pointerId; try { stick.setPointerCapture(sid); } catch {}
-    const r = stick.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+    const r = stick.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; R = r.width * 0.38;
     move(e);
   });
   const move = (e) => {

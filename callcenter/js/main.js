@@ -69,7 +69,6 @@ class Game {
     this.personas = (await (await fetch('personas.json')).json()).callers;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
-    this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -102,12 +101,20 @@ class Game {
       return a;
     });
 
-    addEventListener('resize', () => {
-      this.camera.aspect = innerWidth / innerHeight;
+    // Größe immer an die echte sichtbare Fläche anpassen (Adressleiste, Drehen, iPad-Split-View)
+    const canvas = this.renderer.domElement;
+    const fitView = () => {
+      const w = Math.max(1, canvas.clientWidth), h = Math.max(1, canvas.clientHeight);
+      this.renderer.setSize(w, h, false);
+      this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(innerWidth, innerHeight);
       if (this.computer.isOpen) this.computer.layout();
-    });
+    };
+    if (window.ResizeObserver) new ResizeObserver(fitView).observe(canvas);
+    addEventListener('resize', fitView);
+    addEventListener('orientationchange', () => setTimeout(fitView, 300));
+    window.visualViewport?.addEventListener('resize', fitView);
+    fitView();
     this.bindInput();
     setupTouch(this);
     this.bindMenu();
@@ -899,7 +906,7 @@ class Game {
     const src = this.renderer.domElement;
     cv.getContext('2d').drawImage(src, 0, src.height - cv.height, cv.width, cv.height, 0, 0, cv.width, cv.height);
     this.renderer.setScissorTest(false);
-    this.renderer.setViewport(0, 0, innerWidth, innerHeight);
+    this.renderer.setViewport(0, 0, this.renderer.domElement.clientWidth, this.renderer.domElement.clientHeight);
   }
 
   frame() {

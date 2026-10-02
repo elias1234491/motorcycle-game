@@ -199,12 +199,18 @@ export class Computer {
     return { win, body: win.querySelector('.wbody'), icon };
   }
 
-  get mobile() { return innerWidth < 760 || matchMedia('(pointer: coarse)').matches && innerHeight < 560; }
-  fit(w) { Object.assign(w.style, { left: '0px', top: '0px', width: innerWidth + 'px', height: (innerHeight - 46) + 'px' }); }
+  // Arbeitsfläche = Desktop ohne Taskleiste (berücksichtigt Notch/Home-Leiste)
+  get area() { return { W: this.el.clientWidth || innerWidth, H: (this.el.clientHeight || innerHeight) - ($('#taskbar').offsetHeight || 46) }; }
+  get mobile() {
+    const { W, H } = this.area, coarse = matchMedia('(pointer: coarse)').matches;
+    return W < 760 || (coarse && (W < 900 || H < 560));
+  }
+  fit(w) { const { W, H } = this.area; Object.assign(w.style, { left: '0px', top: '0px', width: W + 'px', height: H + 'px' }); }
 
   layout() {
+    this.el.classList.toggle('pc-mobile', this.mobile);
     if (this.mobile) { this.el.querySelectorAll('.win').forEach(w => this.fit(w)); return; }
-    const W = innerWidth, H = innerHeight - 46;
+    const { W, H } = this.area;
     const place = (id, l, t, w, h) => Object.assign($(id).style, { left: l + 'px', top: t + 'px', width: w + 'px', height: h + 'px' });
     const pw = Math.min(330, W - 20);
     place('#w-phone', W - pw - 10, 10, pw, Math.min(620, H - 20));
@@ -217,10 +223,11 @@ export class Computer {
   openWin(app) {
     const w = this.el.querySelector(`.win[data-app="${app}"]`);
     if (!w) return;
+    this.el.classList.toggle('pc-mobile', this.mobile);
     if (this.mobile) this.fit(w);
     else if (w.dataset.size && !w.style.width) {
       const [ww, hh] = JSON.parse(w.dataset.size);
-      const W = Math.min(ww, innerWidth - 20), H = Math.min(hh, innerHeight - 66);
+      const A = this.area, W = Math.min(ww, A.W - 20), H = Math.min(hh, A.H - 20);
       const n = this.el.querySelectorAll('.win:not([hidden])').length;
       Object.assign(w.style, { width: W + 'px', height: H + 'px', left: Math.max(10, Math.min(innerWidth - W - 10, 180 + n * 28)) + 'px', top: Math.max(10, Math.min(innerHeight - H - 56, 30 + n * 24)) + 'px' });
     }
@@ -241,7 +248,7 @@ export class Computer {
       Object.assign(w.style, JSON.parse(w.dataset.maxed)); delete w.dataset.maxed;
     } else {
       w.dataset.maxed = JSON.stringify({ left: w.style.left, top: w.style.top, width: w.style.width, height: w.style.height });
-      Object.assign(w.style, { left: '0px', top: '0px', width: innerWidth + 'px', height: (innerHeight - 46) + 'px' });
+      this.fit(w);
     }
   }
   deco(kind) {

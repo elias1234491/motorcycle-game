@@ -19,7 +19,9 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{position:fixed;inset:0;touch-action:manipulation}
+body>canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 body{overflow:hidden;background:#120d0a;font-family:var(--f-ui);color:#eef0f5;font-size:14px}
 canvas{display:block}
 button{font:inherit;cursor:pointer}
@@ -27,7 +29,7 @@ input,textarea{font:inherit}
 button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-offset:2px}
 
 /* ---------- Startmenü (Key-Art-Stil: grün mit Euro-Muster) ---------- */
-#menu{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;
+#menu{position:fixed;inset:0;z-index:50;display:flex;align-items:safe center;justify-content:safe center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));overflow:auto;-webkit-overflow-scrolling:touch;
   background:var(--brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='70' font-family='Arial Black,Arial' font-weight='900' font-size='64' fill='%23ffffff' fill-opacity='0.13' transform='rotate(-14 60 60)'%3E%E2%82%AC%3C/text%3E%3C/svg%3E")}
 #menu::before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.18),rgba(0,0,0,.35));pointer-events:none}
 #menu.hide{display:none}
@@ -208,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-
 .popup .pb{padding:16px 10px;font-weight:800;text-align:center}
 
 /* Taskleiste */
-#taskbar{position:absolute;left:0;right:0;bottom:0;height:46px;background:rgba(14,18,30,.96);display:flex;align-items:center;gap:6px;padding:0 10px;z-index:70}
+#taskbar{position:absolute;left:0;right:0;bottom:0;overflow-x:auto;height:calc(46px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px)!important;padding-left:max(10px,env(safe-area-inset-left,0px))!important;padding-right:max(10px,env(safe-area-inset-right,0px))!important;background:rgba(14,18,30,.96);display:flex;align-items:center;gap:6px;padding:0 10px;z-index:70}
 .tb{width:34px;height:34px;border-radius:7px;border:0;display:flex;align-items:center;justify-content:center;position:relative}
 .tb svg{width:20px;height:20px;fill:#fff}
 .tb.open::after{content:"";position:absolute;left:8px;right:8px;bottom:-5px;height:3px;border-radius:2px;background:#7fb2ff}
@@ -372,22 +374,25 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--quota);outline-
 /* ---------- Handy ---------- */
 #touch{position:fixed;inset:0;z-index:4;pointer-events:none}
 #t-look{position:absolute;right:0;top:0;bottom:0;width:58%;pointer-events:auto;touch-action:none}
-#t-stick{position:absolute;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:130px;height:130px;border-radius:50%;background:rgba(20,22,32,.35);border:2px solid rgba(255,255,255,.35);pointer-events:auto;touch-action:none}
-#t-knob{position:absolute;left:39px;top:39px;width:52px;height:52px;border-radius:50%;background:rgba(255,246,234,.85);box-shadow:0 2px 8px rgba(0,0,0,.4)}
-#t-btns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,auto);gap:10px;align-items:end;pointer-events:auto}
-.t-b{width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(20,22,32,.6);color:#fff;font-size:24px;font-weight:800;touch-action:none}
-.t-b.small{width:48px;height:48px;font-size:19px}
-.t-b.big{width:76px;height:76px;font-size:28px;background:rgba(255,210,58,.85);color:#111;grid-column:3;grid-row:1/3}
+#t-stick{position:absolute;left:calc(clamp(12px,3vmin,24px) + env(safe-area-inset-left,0px));bottom:calc(clamp(12px,4vmin,28px) + env(safe-area-inset-bottom,0px));width:clamp(96px,26vmin,170px);height:clamp(96px,26vmin,170px);border-radius:50%;background:rgba(20,22,32,.35);border:2px solid rgba(255,255,255,.35);pointer-events:auto;touch-action:none}
+#t-knob{position:absolute;left:50%;top:50%;translate:-50% -50%;width:40%;height:40%;border-radius:50%;background:rgba(255,246,234,.85);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#t-btns{position:absolute;right:calc(clamp(10px,3vmin,22px) + env(safe-area-inset-right,0px));bottom:calc(clamp(12px,4vmin,28px) + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,auto);gap:clamp(6px,1.6vmin,12px);align-items:end;pointer-events:auto}
+.t-b{width:clamp(46px,13vmin,72px);height:clamp(46px,13vmin,72px);border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(20,22,32,.6);color:#fff;font-size:clamp(18px,5vmin,28px);font-weight:800;touch-action:none}
+.t-b.small{width:clamp(38px,10.5vmin,58px);height:clamp(38px,10.5vmin,58px);font-size:clamp(15px,4vmin,22px)}
+.t-b.big{width:clamp(58px,17vmin,92px);height:clamp(58px,17vmin,92px);font-size:clamp(22px,6vmin,34px);background:rgba(255,210,58,.85);color:#111;grid-column:3;grid-row:1/3}
 .t-b.on{background:rgba(255,210,58,.85)}
 body.touch #hints,body.touch #brain-label{display:none}
 body.touch #prompt{top:calc(50% + 34px);font-size:16px}
-body.touch #stats-hud{right:auto;left:50%;transform:translateX(-50%);top:8px;bottom:auto;padding:5px 10px;gap:10px}
+body.touch #stats-hud{right:auto;left:50%;transform:translateX(-50%);top:calc(6px + env(safe-area-inset-top,0px));bottom:auto;padding:5px 10px;gap:10px}
 body.touch #stats-hud .stats{font-size:10px}
 body.touch #inv{bottom:auto;top:62px}
 body.touch #room-code{top:auto;bottom:170px}
 body.touch #players{top:62px}
 body.touch input,body.touch textarea{font-size:16px}
-body.touch #toasts{top:64px}
+body.touch #toasts{top:calc(60px + env(safe-area-inset-top,0px))}
+body.touch #players{right:calc(12px + env(safe-area-inset-right,0px))}
+#pc{padding:0}
+@media (pointer:coarse){.win .tbar{height:36px}.tbar button{width:42px;height:36px;font-size:16px}#icons{left:max(12px,env(safe-area-inset-left,0px));top:max(12px,env(safe-area-inset-top,0px))}}
 @media (max-height:520px){.portrait,.wave{display:none}#ph-name{padding:5px}.ph{gap:5px;padding:8px}#incoming{top:46%;padding:12px}#in-face{width:64px;height:64px}#in-lure{display:none}}
 @media (max-width:760px){
   #icons{right:12px;grid-auto-flow:row;grid-template-columns:repeat(auto-fill,78px);grid-template-rows:none;overflow:auto;justify-content:center}
@@ -401,6 +406,29 @@ body.touch #toasts{top:64px}
   .dc-side{display:none}
   #incoming{width:min(300px,92vw)}
   .report{padding:16px}
+}
+.stats{white-space:nowrap}
+@media (max-width:440px){body.touch #stats-hud .clock{display:none}body.touch #stats-hud{padding:4px 8px}}
+@media (max-height:440px){body.touch #toasts{top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));width:min(380px,50vw)}.toast{padding:5px 10px;font-size:12px}body.touch #prompt{top:calc(50% + 20px)}}
+/* Tablets: Vollbild-Fenster mit größerer Schrift */
+@media (min-width:700px){
+  .pc-mobile .ph{padding:16px;gap:10px}
+  .pc-mobile .trust-head{font-size:17px}.pc-mobile #ph-status,.pc-mobile #ph-pct{font-size:15px}
+  .pc-mobile #ph-name{font-size:18px;padding:12px}
+  .pc-mobile #ph-face{width:220px;height:164px}
+  .pc-mobile .bub{font-size:17px;padding:10px 12px}.pc-mobile .bub .n{font-size:13px}.pc-mobile .bub.sys{font-size:14px}
+  .pc-mobile #ph-text{font-size:18px;padding:14px}
+  .pc-mobile #ph-hangup{font-size:18px;padding:14px}.pc-mobile .sq{width:56px}
+  .pc-mobile .tbar{height:44px;font-size:15px}.pc-mobile .tbar button{width:50px;height:44px}
+  .pc-mobile .sz-card b{font-size:15px}.pc-mobile .sz-card p{font-size:13px}.pc-mobile .sz-buy{font-size:14px;padding:10px}
+  .pc-mobile .sz-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .pc-mobile .sc,.pc-mobile .ia,.pc-mobile .po-body{font-size:16px}
+  .pc-mobile .sc .lure,.pc-mobile .sc .tip,.pc-mobile #sc-steps{font-size:15px}
+  .pc-mobile .rb-main h3{font-size:22px}.pc-mobile #rb-id,.pc-mobile #rb-connect{font-size:20px;padding:14px}
+  .pc-mobile .dc-log,.pc-mobile .zm-chat{font-size:16px}
+  .pc-mobile #taskbar .tb{width:44px;height:44px}
+  .pc-mobile .icon{width:96px;font-size:14px}.pc-mobile .ico{width:60px;height:60px}.pc-mobile .ico svg{width:34px;height:34px}
+  .pc-mobile #icons{grid-template-columns:repeat(auto-fill,96px);grid-auto-flow:row;grid-template-rows:none;right:12px;overflow:auto}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
