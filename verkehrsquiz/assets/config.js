@@ -11,5 +11,5 @@
 //  dann nur in mehreren Tabs desselben Browsers (zum Ausprobieren).
 // =====================================================================
 
-export const SUPABASE_URL = '';
+export const SUPABASE_URL = 'https://tbjzstfvrnstnyttgvpa.supabase.co';
 export const SUPABASE_KEY = '';
