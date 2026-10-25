@@ -12,4 +12,4 @@
 // =====================================================================
 
 export const SUPABASE_URL = 'https://tbjzstfvrnstnyttgvpa.supabase.co';
-export const SUPABASE_KEY = '';
+export const SUPABASE_KEY = 'sb_publishable_Kr0a40s4WdadYU8duGU39A_-eUJARpP';
