@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mitspielen – Verkehrsverhalten-Quiz</title>
+  <meta name="theme-color" content="#1f9d55">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body class="player">
+  <header data-site-header></header>
+  <main id="app" class="player-app"><p class="muted" style="text-align:center;padding:2rem">Lädt …</p></main>
+  <div class="conn-banner" role="status">Verbindung wird wiederhergestellt …</div>
+  <script type="module">import { renderChrome } from '../assets/common.js'; renderChrome('mitspielen');</script>
+  <script type="module" src="../assets/player.js"></script>
+</body>
+</html>

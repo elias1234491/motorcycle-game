@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ergebnis – Verkehrsverhalten-Quiz</title>
+  <meta name="theme-color" content="#1f9d55">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body class="page-result">
+  <header data-site-header></header>
+  <main class="container" id="result"></main>
+  <footer data-site-footer></footer>
+  <script type="module">
+    import { renderChrome, store, podiumHTML, rankingTableHTML, tipsHTML, exportResult, confetti, esc, link } from '../assets/common.js';
+    import { TIPS, QUOTE } from '../assets/questions.js';
+    renderChrome('');
+    const el = document.getElementById('result');
+    const r = store('vq_result');
+    const date = r ? new Date(r.date).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const mine = r && r.me ? r.ranking.find((p) => p.id === r.me) : null;
+    el.innerHTML = `
+      <h1 class="page-title">Rangliste &amp; Ergebnis</h1>
+      ${r && r.ranking.length ? `
+        <p class="muted">Spiel ${esc(r.code)} · ${esc(date)} · ${r.total} Fragen gewertet</p>
+        ${mine ? `<p class="my-result">Du bist auf <b>Platz ${mine.rank}</b> mit <b>${mine.score.toLocaleString('de-DE')} Punkten</b> (${mine.correct} von ${r.total} richtig).</p>` : ''}
+        ${podiumHTML(r.ranking)}
+        <div class="result-actions"><button class="btn btn-secondary" id="export">⬇ Rangliste als Datei (CSV)</button></div>
+        ${rankingTableHTML(r.ranking, r.total, r.me)}`
+      : `<div class="empty-result"><p>Auf diesem Gerät wurde noch kein Spiel beendet.</p>
+         <p><a class="btn btn-primary" href="${link('mitspielen/')}">Mitspielen</a> <a class="btn btn-secondary" href="${link('leiten/')}">Quiz leiten</a></p></div>`}
+      ${tipsHTML(TIPS, QUOTE)}`;
+    document.getElementById('export')?.addEventListener('click', () => exportResult(r));
+    if (r && r.ranking.length) confetti(4000);
+  </script>
+</body>
+</html>

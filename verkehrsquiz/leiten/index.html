@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz leiten – Verkehrsverhalten-Quiz</title>
+  <meta name="theme-color" content="#1f9d55">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body class="host">
+  <header data-site-header></header>
+  <div class="host-shell">
+    <div class="host-topbar" id="topbar"></div>
+    <main class="host-stage" id="stage"></main>
+    <nav class="host-controls" id="controls" aria-label="Steuerung"></nav>
+  </div>
+  <dialog id="players-dialog" class="players-dialog">
+    <h2>Spieler verwalten</h2>
+    <ul></ul>
+    <button class="btn btn-primary" data-close>Schließen</button>
+  </dialog>
+  <script type="module">import { renderChrome } from '../assets/common.js'; renderChrome('leiten');</script>
+  <script type="module" src="../assets/host.js"></script>
+</body>
+</html>
